@@ -10,10 +10,6 @@
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/monitor.png" alt="Gauge's Monitor page: CPU and GPU load with 90 seconds of history, memory, network, storage and the process list" width="900">
-</p>
-
 ## Features
 
 ### Monitor
@@ -23,6 +19,10 @@
 - A process list grouped by app, sortable by CPU, GPU or memory; run as administrator for per-app download and upload speeds
 - Switch between GPUs on machines with more than one
 
+<p align="center">
+  <img src="docs/screenshots/monitor.png" alt="Gauge's Monitor page: CPU and GPU load with 90 seconds of history, memory, network, storage and the process list" width="900">
+</p>
+
 ### Lighting
 - Control RGB devices without the maker's software: keyboards, mice, headsets, graphics cards, coolers, fan and LED controllers
 - A native driver for Lenovo Legion, LOQ and IdeaPad Gaming 4-zone keyboards, and a built-in [OpenRGB](https://openrgb.org) engine for hundreds of other devices, found automatically
@@ -31,26 +31,27 @@
 - "Apply when Gauge starts" sets your lighting at every sign-in
 - Devices without a driver yet are listed, with a report you can copy and send so support can be added
 
+<p align="center">
+  <img src="docs/screenshots/lighting.png" alt="Gauge's Lighting page: device list, lit zone preview and the effect, colour, brightness and speed controls" width="900">
+</p>
+
 ### Specs
 - A complete hardware inventory, detected automatically: system, processor, graphics, memory modules, storage, display and network
 - "Copy specs" puts it all on the clipboard as text, ready for a forum post or support ticket
 
-### Everyday
+<p align="center">
+  <img src="docs/screenshots/specs.png" alt="Gauge's Specs page: device summary, key figures and grouped hardware details" width="900">
+</p>
+
+### Settings
 - Start with Windows, straight to the notification area, and keep running in the tray when closed
 - Updates download quietly in the background and install the next time Gauge starts (can be switched off)
 - Eight accent colours or any hue you like
 - A custom-drawn interface that stays light: no web view, no background services
 
 <p align="center">
-  <img src="docs/screenshots/lighting.png" alt="Gauge's Lighting page: device list, lit zone preview and the effect, colour, brightness and speed controls" width="900">
+  <img src="docs/screenshots/settings.png" alt="Gauge's Settings page: accent colour, start-up and tray options, and updates" width="900">
 </p>
-
-<table>
-  <tr>
-    <td><img src="docs/screenshots/specs.png" alt="Gauge's Specs page"></td>
-    <td><img src="docs/screenshots/settings.png" alt="Gauge's Settings page"></td>
-  </tr>
-</table>
 
 ## Install
 

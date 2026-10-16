@@ -213,11 +213,11 @@ internal static class Snapshot
     /// <summary>
     /// The README banner: brand mark, wordmark and two lines about Gauge, centred over a load trace
     /// in the app's chart style that runs the full width and dims where it passes behind the text.
-    /// Drawn at twice its display size so it stays sharp on high-DPI screens.
+    /// Drawn at three times its display size (3840 x 1080) so it stays sharp on 4K screens.
     /// </summary>
     public static void WriteBanner(string path)
     {
-        const float k = 2, lw = 1280, lh = 360; // logical size; the image is k times larger
+        const float k = 3, lw = 1280, lh = 360; // logical size; the image is k times larger
         int w = (int)(lw * k), h = (int)(lh * k);
         var amber = Color.FromArgb(0xFF, 0xA5, 0x3C);
         float radius = 22 * k, centreX = w / 2f;
@@ -250,7 +250,7 @@ internal static class Snapshot
             gf.SmoothingMode = SmoothingMode.AntiAlias;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             const int n = 72;
-            float baseY = h + 2, top = 96 * k, left = -8 * k, right = 1196 * k, step = (right - left) / (n - 1);
+            float baseY = h + 2, top = 96 * k, left = -8 * k, right = 1240 * k, step = (right - left) / (n - 1);
             using (var dots = new Pen(Color.FromArgb(24, 255, 255, 255), 1.2f * k) { DashPattern = [1f, 3f] })
                 foreach (float y in (ReadOnlySpan<float>)[96, 228])
                     g.DrawLine(dots, 0, y * k, w, y * k);
