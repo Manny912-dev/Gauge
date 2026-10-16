@@ -1,0 +1,46 @@
+Third-party software included with Gauge
+========================================
+
+Gauge is distributed with the following components, unmodified, as separate
+library files. Each remains under its own licence.
+
+OpenRGB 1.0
+  Licence: GNU General Public License v2.0 or later  (full text: engine\LICENSE.txt)
+  Source:  https://github.com/Manny912-dev/Gauge/releases/tag/openrgb-1.0-source
+           (the exact source of the bundled build; upstream: https://codeberg.org/OpenRGB/OpenRGB)
+  Included unmodified in the engine folder and run by Gauge as a separate program.
+
+LibreHardwareMonitorLib 0.9.6
+  Licence: Mozilla Public License 2.0  (https://www.mozilla.org/MPL/2.0/)
+  Source:  https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
+
+DiskInfoToolkit 1.1.2
+  Licence: Mozilla Public License 2.0
+  Source:  https://github.com/Blacktempel/DiskInfoToolkit
+
+RAMSPDToolkit-NDD 1.4.2
+  Licence: Mozilla Public License 2.0
+  Source:  https://github.com/Blacktempel/RAMSPDToolkit
+
+BlackSharp.Core 1.0.7
+  Licence: Mozilla Public License 2.0
+  Source:  https://github.com/Blacktempel/BlackSharp
+
+Velopack 1.2.161
+  Licence: MIT  (https://github.com/velopack/velopack/blob/master/LICENSE)
+  Source:  https://github.com/velopack/velopack
+
+HidSharp 2.6.4
+  Licence: Apache License 2.0  (https://www.apache.org/licenses/LICENSE-2.0)
+  Source:  https://software.seekye.com/hidsharp
+
+.NET runtime, Windows Forms, System.Management, System.IO.Ports
+  Copyright (c) .NET Foundation and Contributors
+  Licence: MIT  (https://github.com/dotnet/runtime/blob/main/LICENSE.TXT)
+
+The Mozilla Public License requires that the source code of MPL-licensed files
+be available to recipients. Gauge uses the published, unmodified builds of the
+MPL components listed above; their source is available at the links given.
+
+Gauge also reads Nvidia graphics sensors through nvml.dll, which is installed
+by the Nvidia driver on the user's PC and is not distributed with Gauge.

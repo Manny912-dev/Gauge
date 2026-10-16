@@ -1,0 +1,12 @@
+# Build output
+bin/
+obj/
+dist/
+release/
+*.user
+.vs/
+
+# Local only: source backups, third-party downloads and maintainer notes
+backups/
+third-party/
+HANDOFF.md

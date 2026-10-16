@@ -1,0 +1,22 @@
+# Changelog
+
+## 0.7.0 — the redesign
+
+A full redesign of the interface on the way to 1.0.
+
+- **New layout.** A navigation rail on the left (Monitor, Specs, Lighting, and Settings at the bottom) and a page header with the page's own action. `Ctrl+1` to `Ctrl+4` switch pages.
+- **Monitor.** Larger CPU and GPU readings with 90 seconds of history drawn edge to edge, details in a tidy grid, and temperatures that turn amber and red as they climb. Memory, network and storage share one panel. "Restart as admin" now sits by the process list, where per-app network speeds appear.
+- **Lighting.** Rebuilt as a device list and an inspector. Every device shows a swatch of its current colours; the preview glows in the colours it is set to; effect, colour, brightness and speed are laid out as labelled rows. Motherboard and RAM setup and the "No driver yet" list live in the device column.
+- **Specs.** Grouped, easier-to-scan sections and a single row of key figures.
+- **Settings** is now a full page: accent colour, start-up and tray options, and update status.
+- One consistent visual system throughout, and the Lighting, Specs and Settings pages scroll when the window is small.
+
+## 0.6.1
+
+- On Windows 11 the window has rounded corners and a matching outline, like the system's own windows.
+
+## 0.6.0
+
+- **Start with Windows.** Gauge can open in the notification area when you sign in, without its window, so saved lighting is applied at every sign-in.
+- **Keep running in the tray.** The close button can hide Gauge instead of quitting it. Click the tray icon to open Gauge; right-click it to quit.
+- Opening Gauge again brings back a hidden window, and a copy waiting in the tray installs downloaded updates by itself.
