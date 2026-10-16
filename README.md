@@ -20,7 +20,7 @@
 - Switch between GPUs on machines with more than one
 
 <p align="center">
-  <img src="docs/screenshots/monitor.png" alt="Gauge's Monitor page: CPU and GPU load with 90 seconds of history, memory, network, storage and the process list" width="900">
+  <img src="docs/screenshots/monitor.gif" alt="Gauge's Monitor page running live: CPU and GPU load with 90 seconds of history scrolling past, memory, network, storage and the process list updating" width="900">
 </p>
 
 ### Lighting
@@ -32,7 +32,7 @@
 - Devices without a driver yet are listed, with a report you can copy and send so support can be added
 
 <p align="center">
-  <img src="docs/screenshots/lighting.png" alt="Gauge's Lighting page: device list, lit zone preview and the effect, colour, brightness and speed controls" width="900">
+  <img src="docs/screenshots/lighting.gif" alt="Gauge's Lighting page: the Lenovo 4-zone keyboard set to magenta, then cyan, then the Breathing and Wave effects, then back to the accent colour, with the lit zone preview following each change" width="900">
 </p>
 
 ### Specs
@@ -40,7 +40,7 @@
 - "Copy specs" puts it all on the clipboard as text, ready for a forum post or support ticket
 
 <p align="center">
-  <img src="docs/screenshots/specs.png" alt="Gauge's Specs page: device summary, key figures and grouped hardware details" width="900">
+  <img src="docs/screenshots/specs.gif" alt="Gauge's Specs page: scrolling through the device summary, key figures and grouped hardware details, then Copy specs" width="900">
 </p>
 
 ### Settings
@@ -50,7 +50,7 @@
 - A custom-drawn interface that stays light: no web view, no background services
 
 <p align="center">
-  <img src="docs/screenshots/settings.png" alt="Gauge's Settings page: accent colour, start-up and tray options, and updates" width="900">
+  <img src="docs/screenshots/settings.gif" alt="Gauge's Settings page: switching between accent colours, which recolour the charts, highlights and switches, and turning the start-up and tray options on and off" width="900">
 </p>
 
 ## Install
