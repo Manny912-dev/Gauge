@@ -1,10 +1,5 @@
 <p align="center">
-  <img src="docs/banner.png" alt="Gauge: system monitor and RGB lighting for Windows" width="100%">
-</p>
-
-<p align="center">
-  A lightweight system monitor and RGB lighting controller for Windows.<br>
-  No account, no telemetry, no vendor apps. About 40 MB of memory.
+  <img src="docs/banner.png" alt="Gauge: a lightweight system monitor and RGB lighting controller for Windows. No account, no telemetry, no vendor apps. About 40 MB of memory." width="100%">
 </p>
 
 <p align="center">

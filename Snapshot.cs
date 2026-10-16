@@ -211,15 +211,23 @@ internal static class Snapshot
     }
 
     /// <summary>
-    /// The README banner: brand mark, wordmark and tagline over a live-looking load chart in the
-    /// app's own style. Drawn at twice its display size so it stays sharp on high-DPI screens.
+    /// The README banner: brand mark, wordmark and two lines about Gauge, centred over a load trace
+    /// in the app's chart style that runs the full width and dims where it passes behind the text.
+    /// Drawn at twice its display size so it stays sharp on high-DPI screens.
     /// </summary>
     public static void WriteBanner(string path)
     {
-        const float k = 2, lw = 1280, lh = 300; // logical size; the image is k times larger
+        const float k = 2, lw = 1280, lh = 360; // logical size; the image is k times larger
         int w = (int)(lw * k), h = (int)(lh * k);
         var amber = Color.FromArgb(0xFF, 0xA5, 0x3C);
-        float radius = 22 * k;
+        float radius = 22 * k, centreX = w / 2f;
+        const string leadText = "A lightweight system monitor and RGB lighting controller for Windows.";
+        using var lead = new Font("Segoe UI", 25 * k, FontStyle.Regular, GraphicsUnit.Pixel);
+        float leadW;
+        using (var probe = new Bitmap(1, 1)) using (var pg = Graphics.FromImage(probe)) leadW = pg.MeasureString(leadText, lead, PointF.Empty, StringFormat.GenericTypographic).Width;
+        // The text block the trace passes behind, and how softly the dimming fades out around it
+        var block = RectangleF.FromLTRB(centreX - leadW / 2 - 28 * k, 66 * k, centreX + leadW / 2 + 28 * k, 252 * k);
+        float feather = 70 * k;
 
         static GraphicsPath Rounded(RectangleF r, float d)
         {
@@ -232,19 +240,27 @@ internal static class Snapshot
             return p;
         }
 
-        // The chart goes on its own layer first, so it can fade out under the wordmark.
+        // The trace, its guide lines and its glow go on their own layer, so they can be dimmed behind the text.
         using var chart = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+        using var fillLayer = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+        float endX;
         using (var g = Graphics.FromImage(chart))
+        using (var gf = Graphics.FromImage(fillLayer))
         {
+            gf.SmoothingMode = SmoothingMode.AntiAlias;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            const int n = 64;
-            float baseY = h + 2, top = 104 * k, left = 600 * k, right = 1176 * k, step = (right - left) / (n - 1);
+            const int n = 72;
+            float baseY = h + 2, top = 96 * k, left = -8 * k, right = 1196 * k, step = (right - left) / (n - 1);
+            using (var dots = new Pen(Color.FromArgb(24, 255, 255, 255), 1.2f * k) { DashPattern = [1f, 3f] })
+                foreach (float y in (ReadOnlySpan<float>)[96, 228])
+                    g.DrawLine(dots, 0, y * k, w, y * k);
+
             var pts = new PointF[n];
             for (int i = 0; i < n; i++)
             {
-                // A calm, deterministic "load" trace that builds toward the right edge
+                // A calm, deterministic "load" trace: higher at the sides, low under the text, rising to the end.
                 float t = i / (float)(n - 1);
-                float v = 0.26f + 0.30f * t * t + 0.09f * MathF.Sin(i * 0.19f + 0.6f) + 0.035f * MathF.Sin(i * 0.47f + 1.9f);
+                float v = 0.46f + 0.12f * MathF.Sin(3 * MathF.PI * t - 0.4f) + 0.10f * t * t + 0.03f * MathF.Sin(i * 0.43f + 0.8f) + 0.015f * MathF.Sin(i * 0.97f + 2.1f);
                 pts[i] = new PointF(left + i * step, baseY - Math.Clamp(v, 0.05f, 1) * (baseY - top));
             }
             using (var area = new GraphicsPath())
@@ -253,33 +269,43 @@ internal static class Snapshot
                 area.AddLine(pts[^1].X, pts[^1].Y, pts[^1].X, baseY);
                 area.AddLine(pts[^1].X, baseY, left, baseY);
                 area.CloseFigure();
-                using var fill = new LinearGradientBrush(new PointF(0, top - 10 * k), new PointF(0, baseY), Color.FromArgb(64, amber), Color.FromArgb(0, amber));
-                g.FillPath(fill, area);
+                using var fill = new LinearGradientBrush(new PointF(0, top + 40 * k), new PointF(0, baseY), Color.FromArgb(60, amber), Color.FromArgb(0, amber));
+                gf.FillPath(fill, area);
             }
             using (var line = new Pen(amber, 3.2f * k) { LineJoin = LineJoin.Round })
                 g.DrawCurve(line, pts, 0.35f);
             var end = pts[^1];
+            endX = end.X;
             foreach (var (r, a) in (ReadOnlySpan<(float, int)>)[(22 * k, 26), (13 * k, 50)])
                 using (var halo = new SolidBrush(Color.FromArgb(a, amber))) g.FillEllipse(halo, end.X - r, end.Y - r, r * 2, r * 2);
             using (var dot = new SolidBrush(amber)) g.FillEllipse(dot, end.X - 6 * k, end.Y - 6 * k, 12 * k, 12 * k);
         }
-        // Fade the chart in from the left: invisible under the text, full strength from the middle on.
-        var data = chart.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
-        unsafe
+        // Dim both layers behind the text block (feathered, so the trace slips smoothly behind the words),
+        // ease them in from the left edge, and let the fill thin out toward the end of the trace.
+        static float Smooth(float e) { e = Math.Clamp(e, 0, 1); return e * e * (3 - 2 * e); }
+        foreach (var (layer, isFill) in new[] { (chart, false), (fillLayer, true) })
         {
-            float from = 640 * k, to = 900 * k;
-            for (int y = 0; y < h; y++)
+            var data = layer.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
+            unsafe
             {
-                byte* row = (byte*)data.Scan0 + y * data.Stride;
-                for (int x = 0; x < w; x++)
+                for (int y = 0; y < h; y++)
                 {
-                    float f = Math.Clamp((x - from) / (to - from), 0, 1);
-                    f = f * f * (3 - 2 * f);
-                    row[x * 4 + 3] = (byte)(row[x * 4 + 3] * f);
+                    byte* row = (byte*)data.Scan0 + y * data.Stride;
+                    float oy = MathF.Max(0, MathF.Max(block.Top - y, y - block.Bottom));
+                    for (int x = 0; x < w; x++)
+                    {
+                        if (row[x * 4 + 3] == 0) continue;
+                        float ox = MathF.Max(0, MathF.Max(block.Left - x, x - block.Right));
+                        float d = MathF.Sqrt(ox * ox + oy * oy) / feather;
+                        float behind = MathF.Exp(-d * d * 2.2f); // 1 inside the block, gone a feather's width outside
+                        float f = (1 - 0.70f * behind) * Smooth(x / (90 * k));
+                        if (isFill) f *= 1 - 0.75f * Smooth((x - (endX - 260 * k)) / (260 * k));
+                        row[x * 4 + 3] = (byte)(row[x * 4 + 3] * f);
+                    }
                 }
             }
+            layer.UnlockBits(data);
         }
-        chart.UnlockBits(data);
 
         using var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp))
@@ -292,40 +318,44 @@ internal static class Snapshot
             using (var shade = new LinearGradientBrush(new PointF(0, 0), new PointF(0, h), Color.FromArgb(0x17, 0x18, 0x1D), Color.FromArgb(0x0B, 0x0C, 0x0E)))
                 g.FillPath(shade, shape);
             g.SetClip(shape);
-
-            // A warm glow where the trace ends, and the app's faint dotted guide lines
+            // A warm glow where the trace ends
             using (var glowPath = new GraphicsPath())
             {
-                glowPath.AddEllipse(760 * k, 40 * k, 700 * k, 420 * k);
-                using var glow = new PathGradientBrush(glowPath) { CenterColor = Color.FromArgb(40, amber), SurroundColors = [Color.FromArgb(0, amber)] };
+                glowPath.AddEllipse(820 * k, 60 * k, 640 * k, 440 * k);
+                using var glow = new PathGradientBrush(glowPath) { CenterColor = Color.FromArgb(36, amber), SurroundColors = [Color.FromArgb(0, amber)] };
                 g.FillPath(glow, glowPath);
             }
-            using (var dots = new Pen(Color.FromArgb(22, 255, 255, 255), 1.2f * k) { DashPattern = [1f, 3f] })
-                foreach (float y in (ReadOnlySpan<float>)[104, 202])
-                    g.DrawLine(dots, 700 * k, y * k, w, y * k);
+            g.DrawImage(fillLayer, 0, 0);
             g.DrawImage(chart, 0, 0);
             g.ResetClip();
             using (var edge = new Pen(Color.FromArgb(26, 255, 255, 255), 1.4f * k))
                 g.DrawPath(edge, shape);
 
-            // Brand: the gauge mark, the wordmark and one line about what it is
-            float mx = 64 * k, cy = 122 * k, mr = 33 * k;
+            // Brand: the gauge mark and wordmark, centred together, then two lines about Gauge
+            var fmt = StringFormat.GenericTypographic;
+            using var word = new Font("Bahnschrift SemiBold", 84 * k, FontStyle.Regular, GraphicsUnit.Pixel);
+            using var sub = new Font("Segoe UI", 21 * k, FontStyle.Regular, GraphicsUnit.Pixel);
+            using var ink = new SolidBrush(Color.FromArgb(0xF2, 0xF3, 0xF5));
+            using var soft = new SolidBrush(Color.FromArgb(0xA8, 0xAE, 0xB7));
+            static float Ascent(Font f) => f.Size * f.FontFamily.GetCellAscent(FontStyle.Regular) / f.FontFamily.GetEmHeight(FontStyle.Regular);
+
+            float mr = 32 * k, gap = 22 * k, wordW = g.MeasureString("Gauge", word, PointF.Empty, fmt).Width;
+            float groupX = centreX - (mr * 2 + gap + wordW) / 2, baseline = 138 * k, cy = baseline - 31 * k;
             using (var track = new Pen(Color.FromArgb(64, 255, 255, 255), 9 * k) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             using (var value = new Pen(amber, 9 * k) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             {
-                g.DrawArc(track, mx, cy - mr + 3 * k, mr * 2, mr * 2, 135, 270);
-                g.DrawArc(value, mx, cy - mr + 3 * k, mr * 2, mr * 2, 135, 170);
+                g.DrawArc(track, groupX, cy - mr + 3 * k, mr * 2, mr * 2, 135, 270);
+                g.DrawArc(value, groupX, cy - mr + 3 * k, mr * 2, mr * 2, 135, 170);
             }
-            var fmt = StringFormat.GenericTypographic;
-            using var word = new Font("Bahnschrift SemiBold", 86 * k, FontStyle.Regular, GraphicsUnit.Pixel);
-            using var tag = new Font("Segoe UI", 24 * k, FontStyle.Regular, GraphicsUnit.Pixel);
-            using var ink = new SolidBrush(Color.FromArgb(0xF2, 0xF3, 0xF5));
-            using var muted = new SolidBrush(Color.FromArgb(0x9A, 0xA0, 0xA9));
-            float ascent = word.Size * word.FontFamily.GetCellAscent(FontStyle.Regular) / word.FontFamily.GetEmHeight(FontStyle.Regular);
-            float wordX = mx + mr * 2 + 20 * k, baseline = cy + 31 * k;
-            g.DrawString("Gauge", word, ink, wordX, baseline - ascent, fmt);
-            float tagAscent = tag.Size * tag.FontFamily.GetCellAscent(FontStyle.Regular) / tag.FontFamily.GetEmHeight(FontStyle.Regular);
-            g.DrawString("System monitor and RGB lighting for Windows", tag, muted, mx + 2 * k, baseline + 62 * k - tagAscent, fmt);
+            g.DrawString("Gauge", word, ink, groupX + mr * 2 + gap, baseline - Ascent(word), fmt);
+
+            void Centred(string s, Font f, Brush b, float base_)
+            {
+                float tw = g.MeasureString(s, f, PointF.Empty, fmt).Width;
+                g.DrawString(s, f, b, centreX - tw / 2, base_ - Ascent(f), fmt);
+            }
+            Centred(leadText, lead, ink, 200 * k);
+            Centred("No account, no telemetry, no vendor apps. About 40 MB of memory.", sub, soft, 238 * k);
         }
         bmp.Save(path, ImageFormat.Png);
     }
