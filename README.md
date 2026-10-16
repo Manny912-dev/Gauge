@@ -1,4 +1,6 @@
-<h1 align="center">Gauge</h1>
+<p align="center">
+  <img src="docs/banner.png" alt="Gauge: system monitor and RGB lighting for Windows" width="100%">
+</p>
 
 <p align="center">
   A lightweight system monitor and RGB lighting controller for Windows.<br>
@@ -100,6 +102,7 @@ The app is written in C# with Windows Forms, but nothing on screen is a standard
 |---|---|
 | `--snapshot <folder>` | Renders every page to PNG offscreen with live data, plus sensor readings and a lighting device report |
 | `--tray-menu <file.png>` | Opens the tray menu and saves a picture of it |
+| `--banner <file.png>` | Draws the README banner (`docs/banner.png`) |
 | `--orgb-test <file>` | Sends colours to every OpenRGB device and reads them back |
 | `--light-test <RRGGBB> <file>` | Sends one colour to the native keyboard driver |
 | `--board-lighting dryrun` | Writes the motherboard and RAM setup plan to `%TEMP%` without changing anything |
