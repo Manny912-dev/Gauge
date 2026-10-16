@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.png" alt="Gauge: a lightweight system monitor and RGB lighting controller for Windows. No account, no telemetry, no vendor apps. About 40 MB of memory." width="100%">
+  <img src="docs/hero.gif" alt="Gauge: a lightweight system monitor and RGB lighting controller for Windows. No account, no telemetry, no vendor apps. About 40 MB of memory. The animation shows the Monitor page with live CPU and GPU history, then the Lighting page setting a Lenovo 4-zone keyboard to cyan, then to the Wave effect, then back to the accent colour, with the keyboard's light glowing around the window." width="100%">
 </p>
 
 <p align="center">
@@ -98,7 +98,7 @@ The app is written in C# with Windows Forms, but nothing on screen is a standard
 |---|---|
 | `--snapshot <folder>` | Renders every page to PNG offscreen with live data, plus sensor readings and a lighting device report |
 | `--tray-menu <file.png>` | Opens the tray menu and saves a picture of it |
-| `--banner <file.png>` | Draws the README banner (`docs/banner.png`) |
+| `--banner <file.png>` | Draws the banner image (`docs/banner.png`) |
 | `--orgb-test <file>` | Sends colours to every OpenRGB device and reads them back |
 | `--light-test <RRGGBB> <file>` | Sends one colour to the native keyboard driver |
 | `--board-lighting dryrun` | Writes the motherboard and RAM setup plan to `%TEMP%` without changing anything |
