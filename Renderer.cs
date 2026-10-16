@@ -329,14 +329,8 @@ internal sealed partial class Renderer : IDisposable
         g.DrawLines(pen, [new PointF(cx - w, cy + (h - w) * dir), new PointF(cx, cy + h * dir), new PointF(cx + w, cy + (h - w) * dir)]);
     }
 
-    /// <summary>The brand mark: a three-quarter gauge arc with the accent up to its middle.</summary>
-    void Mark(Graphics g, float cx, float cy, float radius)
-    {
-        using var track = new Pen(White(56), 2.4f * _s) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-        using var value = new Pen(Accent, 2.4f * _s) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-        g.DrawArc(track, cx - radius, cy - radius, radius * 2, radius * 2, 135, 270);
-        g.DrawArc(value, cx - radius, cy - radius, radius * 2, radius * 2, 135, 170);
-    }
+    /// <summary>The brand mark (see <see cref="Brand"/>), lit in the user's accent, in a square box <paramref name="size"/> wide.</summary>
+    void Mark(Graphics g, float cx, float cy, float size) => Brand.DrawMark(g, cx, cy, size, Accent, White(60), 8.5f);
 
     bool Hover(RectangleF r) => r.Contains(Mouse);
 
@@ -416,7 +410,7 @@ internal sealed partial class Renderer : IDisposable
         float rw = RailWidth * _s;
         Rect(g, RailBg, 0, 0, rw, h);
         Rect(g, White(9), MathF.Round(rw) - 1, 0, 1, h);
-        Mark(g, rw / 2, ChromeHeight * _s / 2, 8.5f * _s);
+        Mark(g, rw / 2, ChromeHeight * _s / 2, 28 * _s);
 
         float y = 68 * _s, pitch = 62 * _s;
         NavItem(g, "Monitor", HitMonitor, PageMonitor, y);

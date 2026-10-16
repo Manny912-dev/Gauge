@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1 — a new mark
+
+- **New logo.** A segmented dial: nine segments, six of them lit, like a meter two thirds of the way up. It is on the app icon, the taskbar and tray, the navigation rail and the tray menu.
+- **A new installer panel.** The setup window now matches the app: the new mark and name, one line about Gauge, the version being installed, and a progress bar that fills a track built into the design.
+
 ## 0.7.0 — the redesign
 
 A full redesign of the interface on the way to 1.0.

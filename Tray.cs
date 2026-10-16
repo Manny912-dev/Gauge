@@ -101,10 +101,10 @@ internal sealed class Tray : IDisposable
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-            float s = Height / 40f, mid = Height / 2f + 1 * s, dot = 3.2f * s;
+            float s = Height / 40f, mid = Height / 2f + 1 * s, mark = 18 * s;
             var (x, right) = TextColumn(this, s);
-            using (var accent = new SolidBrush(Gauge.Renderer.Accent)) g.FillEllipse(accent, x, mid - dot, dot * 2, dot * 2);
-            TextRenderer.DrawText(g, "Gauge", brand, new Point((int)(x + dot * 2 + 9 * s), (int)(mid - brand.Height / 2f)), Ink, TextFormatFlags.NoPadding);
+            Brand.DrawMark(g, x + mark * 28 / 64, mid - 1 * s, mark, Gauge.Renderer.Accent, Color.FromArgb(70, 255, 255, 255), 9);
+            TextRenderer.DrawText(g, "Gauge", brand, new Point((int)(x + mark * 56 / 64 + 9 * s), (int)(mid - brand.Height / 2f)), Ink, TextFormatFlags.NoPadding);
             string version = $"{Program.Version} beta";
             var size = TextRenderer.MeasureText(g, version, small, Size.Empty, TextFormatFlags.NoPadding);
             TextRenderer.DrawText(g, version, small, new Point((int)(right - size.Width), (int)(mid - small.Height / 2f)), Faint, TextFormatFlags.NoPadding);

@@ -63,7 +63,12 @@ if (-not (Test-Path $Feed)) { New-Item -ItemType Directory $Feed | Out-Null }
 if (Test-Path (Join-Path $Feed "Gauge-$Version-full.nupkg")) {
     Write-Host "Update feed already holds $Version; left as is. Raise <Version> in Gauge.csproj to publish an update."
 } else {
-    $log = & $vpk pack --packId Gauge --packVersion $Version --packDir "$stage\Gauge" --mainExe Gauge.exe --packTitle Gauge --packAuthors Gauge --icon gauge.ico --splashImage package\splash.png --splashProgressColor '#FFA53C' --outputDir $Feed 2>&1
+    # The installer's panel names the version it installs, so it is drawn now by the build itself;
+    # package\splash.png (no version) is the fallback if that fails.
+    $splash = Join-Path (Resolve-Path $stage).Path 'splash.png'
+    Start-Process "$stage\Gauge\Gauge.exe" -ArgumentList '--splash', "`"$splash`"", $Version -Wait -WindowStyle Hidden
+    if (-not (Test-Path $splash)) { Write-Host 'Could not draw the versioned installer panel; using package\splash.png.'; $splash = 'package\splash.png' }
+    $log = & $vpk pack --packId Gauge --packVersion $Version --packDir "$stage\Gauge" --mainExe Gauge.exe --packTitle Gauge --packAuthors Gauge --icon gauge.ico --splashImage $splash --splashProgressColor '#FFA53C' --outputDir $Feed 2>&1
     if ($LASTEXITCODE -ne 0) { $log | Write-Host; throw 'building the installer and update package failed' }
 }
 

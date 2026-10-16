@@ -166,47 +166,133 @@ internal static class Snapshot
         bmp.Save(path, ImageFormat.Png);
     }
 
-    /// <summary>The image the installer shows while it works, drawn to match the app.</summary>
-    public static void WriteSplash(string path)
+    /// <summary>
+    /// The panel the installer shows while it works, in the app's style: the mark and wordmark over a
+    /// faint load trace, a footer line, and a dark track along the bottom edge that the installer's own
+    /// progress bar fills (Velopack draws it 12 px tall, full width, in the colour release.ps1 passes).
+    /// Windows scales this image with the screen, so it avoids details that would blur.
+    /// </summary>
+    public static void WriteSplash(string path, string? version = null)
     {
-        const int w = 520, h = 280;
+        const int w = 560, h = 320, bar = 12;
+        var amber = Color.FromArgb(0xFF, 0xA5, 0x3C);
+        float floor = h - bar; // top of the progress track
+        var fmt = StringFormat.GenericTypographic;
+        static float Ascent(Font f) => f.Size * f.FontFamily.GetCellAscent(FontStyle.Regular) / f.FontFamily.GetEmHeight(FontStyle.Regular);
+        static float Smooth(float e) { e = Math.Clamp(e, 0, 1); return e * e * (3 - 2 * e); }
+
+        // The trace on its own layers, so it can dim where it passes behind the text
+        var block = RectangleF.FromLTRB(118, 72, w - 118, 186);
+        using var line = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+        using var fill = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+        float endX;
+        using (var gl = Graphics.FromImage(line))
+        using (var gf = Graphics.FromImage(fill))
+        {
+            gl.SmoothingMode = gf.SmoothingMode = SmoothingMode.AntiAlias;
+            const int n = 48;
+            float left = -6, right = w - 34, top = 150, step = (right - left) / (n - 1);
+            var pts = new PointF[n];
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)(n - 1);
+                float v = 0.42f + 0.13f * MathF.Sin(3 * MathF.PI * t - 0.4f) + 0.12f * t * t + 0.03f * MathF.Sin(i * 0.55f + 0.8f);
+                pts[i] = new PointF(left + i * step, floor - Math.Clamp(v, 0.08f, 1) * (floor - top));
+            }
+            using (var area = new GraphicsPath())
+            {
+                area.AddCurve(pts, 0.35f);
+                area.AddLine(pts[^1].X, pts[^1].Y, pts[^1].X, floor);
+                area.AddLine(pts[^1].X, floor, left, floor);
+                area.CloseFigure();
+                using var shade = new LinearGradientBrush(new PointF(0, top), new PointF(0, floor), Color.FromArgb(58, amber), Color.FromArgb(0, amber));
+                gf.FillPath(shade, area);
+            }
+            using (var pen = new Pen(amber, 2.2f) { LineJoin = LineJoin.Round })
+                gl.DrawCurve(pen, pts, 0.35f);
+            var end = pts[^1];
+            endX = end.X;
+            foreach (var (r, a) in (ReadOnlySpan<(float, int)>)[(13f, 26), (8f, 52)])
+                using (var halo = new SolidBrush(Color.FromArgb(a, amber))) gl.FillEllipse(halo, end.X - r, end.Y - r, r * 2, r * 2);
+            using (var dot = new SolidBrush(amber)) gl.FillEllipse(dot, end.X - 4, end.Y - 4, 8, 8);
+        }
+        foreach (var (layer, isFill) in new[] { (line, false), (fill, true) })
+        {
+            var data = layer.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
+            unsafe
+            {
+                for (int y = 0; y < h; y++)
+                {
+                    byte* row = (byte*)data.Scan0 + y * data.Stride;
+                    float oy = MathF.Max(0, MathF.Max(block.Top - y, y - block.Bottom));
+                    for (int x = 0; x < w; x++)
+                    {
+                        if (row[x * 4 + 3] == 0) continue;
+                        float ox = MathF.Max(0, MathF.Max(block.Left - x, x - block.Right));
+                        float d = MathF.Sqrt(ox * ox + oy * oy) / 44f;
+                        float f = (1 - 0.7f * MathF.Exp(-d * d * 2.2f)) * Smooth(x / 46f);
+                        if (isFill) f *= 1 - 0.7f * Smooth((x - (endX - 120)) / 120f);
+                        row[x * 4 + 3] = (byte)(row[x * 4 + 3] * f);
+                    }
+                }
+            }
+            layer.UnlockBits(data);
+        }
+
         using var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp))
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-            using (var shade = new LinearGradientBrush(new Point(0, 0), new Point(0, h), Color.FromArgb(0x17, 0x19, 0x1D), Color.FromArgb(0x0D, 0x0E, 0x11)))
+            using (var shade = new LinearGradientBrush(new Point(0, -1), new Point(0, h + 1), Color.FromArgb(0x1A, 0x1B, 0x20), Color.FromArgb(0x0C, 0x0D, 0x10)))
                 g.FillRectangle(shade, 0, 0, w, h);
-            using (var edge = new Pen(Color.FromArgb(40, 255, 255, 255), 1))
-                g.DrawRectangle(edge, 0, 0, w - 1, h - 1);
+            using (var glowPath = new GraphicsPath())
+            {
+                glowPath.AddEllipse(250, 120, 420, 300);
+                using var glow = new PathGradientBrush(glowPath) { CenterColor = Color.FromArgb(34, amber), SurroundColors = [Color.FromArgb(0, amber)] };
+                g.FillPath(glow, glowPath);
+            }
+            using (var dots = new Pen(Color.FromArgb(20, 255, 255, 255), 1) { DashPattern = [1f, 3f] })
+                g.DrawLine(dots, 0, 150.5f, w, 150.5f);
+            g.DrawImage(fill, 0, 0);
+            g.DrawImage(line, 0, 0);
 
-            using var brand = new Font("Bahnschrift SemiBold", 44, FontStyle.Regular, GraphicsUnit.Pixel);
-            using var label = new Font("Bahnschrift SemiBold", 12, FontStyle.Regular, GraphicsUnit.Pixel);
+            // Mark and wordmark, centred together, with one line about what it is
+            using var word = new Font("Bahnschrift SemiBold", 50, FontStyle.Regular, GraphicsUnit.Pixel);
+            using var tag = new Font("Segoe UI", 14, FontStyle.Regular, GraphicsUnit.Pixel);
+            using var small = new Font("Segoe UI", 12, FontStyle.Regular, GraphicsUnit.Pixel);
             using var ink = new SolidBrush(Color.FromArgb(0xF2, 0xF3, 0xF5));
+            using var soft = new SolidBrush(Color.FromArgb(0xA8, 0xAE, 0xB7));
             using var faint = new SolidBrush(Color.FromArgb(0x7A, 0x80, 0x8A));
-            var fmt = StringFormat.GenericTypographic;
-            float textW = g.MeasureString("Gauge", brand, PointF.Empty, fmt).Width, mark = 22, gap = 22;
-            float left = (w - (mark * 2 + gap + textW)) / 2, cy = h / 2f - 14;
+            float mark = 54, markW = mark * 56 / 64, gap = 14, wordW = g.MeasureString("Gauge", word, PointF.Empty, fmt).Width;
+            float gx = (w - (markW + gap + wordW)) / 2, baseline = 128, cy = baseline - 18;
+            Brand.DrawMark(g, gx + markW / 2, cy, mark, amber, Color.FromArgb(64, 255, 255, 255));
+            g.DrawString("Gauge", word, ink, gx + markW + gap, baseline - Ascent(word), fmt);
+            const string tagline = "System monitor and RGB lighting for Windows";
+            float tw = g.MeasureString(tagline, tag, PointF.Empty, fmt).Width;
+            g.DrawString(tagline, tag, soft, (w - tw) / 2, 164 - Ascent(tag), fmt);
 
-            using (var track = new Pen(Color.FromArgb(70, 255, 255, 255), 6.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-            using (var value = new Pen(Color.FromArgb(0xFF, 0xA5, 0x3C), 6.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            // Footer: what is happening, and which version
+            float fb = floor - 15;
+            g.DrawString("Installing", small, soft, 22, fb - Ascent(small), fmt);
+            if (version != null)
             {
-                g.DrawArc(track, left, cy - mark + 2, mark * 2, mark * 2, 135, 270);
-                g.DrawArc(value, left, cy - mark + 2, mark * 2, mark * 2, 135, 170);
+                string v = $"Version {version}";
+                float vw = g.MeasureString(v, small, PointF.Empty, fmt).Width;
+                g.DrawString(v, small, faint, w - 22 - vw, fb - Ascent(small), fmt);
             }
-            g.DrawString("Gauge", brand, ink, left + mark * 2 + gap, cy - 27, fmt);
 
-            // Tracked capitals, as the app sets its labels
-            const string caption = "SYSTEM MONITOR";
-            float cw = 0;
-            foreach (char ch in caption) cw += g.MeasureString(ch.ToString(), label, PointF.Empty, fmt).Width + 2.4f;
-            float x = (w - cw) / 2;
-            foreach (char ch in caption)
-            {
-                g.DrawString(ch.ToString(), label, faint, x, cy + 48, fmt);
-                x += g.MeasureString(ch.ToString(), label, PointF.Empty, fmt).Width + 2.4f;
-            }
+            // The track the installer's progress bar fills, and the window's edge
+            using (var trackFill = new SolidBrush(Color.FromArgb(0x08, 0x09, 0x0B)))
+                g.FillRectangle(trackFill, 0, floor, w, bar);
+            g.SmoothingMode = SmoothingMode.None;
+            using (var lip = new Pen(Color.FromArgb(22, 255, 255, 255), 1))
+                g.DrawLine(lip, 0, floor - 1, w, floor - 1);
+            using (var edge = new Pen(Color.FromArgb(34, 255, 255, 255), 1))
+                g.DrawRectangle(edge, 0, 0, w - 1, h - 1);
         }
+        bmp.SetResolution(96, 96);
         bmp.Save(path, ImageFormat.Png);
     }
 
@@ -339,15 +425,10 @@ internal static class Snapshot
             using var soft = new SolidBrush(Color.FromArgb(0xA8, 0xAE, 0xB7));
             static float Ascent(Font f) => f.Size * f.FontFamily.GetCellAscent(FontStyle.Regular) / f.FontFamily.GetEmHeight(FontStyle.Regular);
 
-            float mr = 32 * k, gap = 22 * k, wordW = g.MeasureString("Gauge", word, PointF.Empty, fmt).Width;
-            float groupX = centreX - (mr * 2 + gap + wordW) / 2, baseline = 138 * k, cy = baseline - 31 * k;
-            using (var track = new Pen(Color.FromArgb(64, 255, 255, 255), 9 * k) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-            using (var value = new Pen(amber, 9 * k) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-            {
-                g.DrawArc(track, groupX, cy - mr + 3 * k, mr * 2, mr * 2, 135, 270);
-                g.DrawArc(value, groupX, cy - mr + 3 * k, mr * 2, mr * 2, 135, 170);
-            }
-            g.DrawString("Gauge", word, ink, groupX + mr * 2 + gap, baseline - Ascent(word), fmt);
+            float mark = 92 * k, markW = mark * 56 / 64, gap = 20 * k, wordW = g.MeasureString("Gauge", word, PointF.Empty, fmt).Width;
+            float groupX = centreX - (markW + gap + wordW) / 2, baseline = 138 * k, cy = baseline - 31 * k;
+            Brand.DrawMark(g, groupX + markW / 2, cy, mark, amber, Color.FromArgb(64, 255, 255, 255));
+            g.DrawString("Gauge", word, ink, groupX + markW + gap, baseline - Ascent(word), fmt);
 
             void Centred(string s, Font f, Brush b, float base_)
             {
@@ -382,12 +463,10 @@ internal static class Snapshot
                 using var fill = new SolidBrush(Color.FromArgb(0x16, 0x18, 0x1B));
                 g.FillPath(fill, tile);
 
-                float stroke = MathF.Max(1.6f, size * 0.105f), inset = size * 0.25f;
-                var arc = new RectangleF(inset, inset + size * 0.03f, size - 2 * inset, size - 2 * inset);
-                using var track = new Pen(Color.FromArgb(0x4A, 0x50, 0x59), stroke) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-                using var value = new Pen(Color.FromArgb(0xF0, 0xA6, 0x3C), stroke) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-                g.DrawArc(track, arc, 135, 270);
-                g.DrawArc(value, arc, 135, 170);
+                // The mark fills about 60% of the tile; small sizes use the five-segment form and a heavier stroke.
+                bool small = size <= 24;
+                float stroke = small ? 11 : size <= 48 ? 9.5f : 8.5f;
+                Brand.DrawMark(g, size / 2f, size / 2f, size * 0.7f, Color.FromArgb(0xF0, 0xA6, 0x3C), Color.FromArgb(0x4A, 0x50, 0x59), stroke, simple: small);
             }
             using var ms = new MemoryStream();
             bmp.Save(ms, ImageFormat.Png);

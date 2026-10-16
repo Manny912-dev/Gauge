@@ -64,11 +64,11 @@ If you turned on motherboard and RAM lighting, turn it off in Gauge before unins
 
 ## What's new
 
+**0.7.1** — A new logo, a segmented dial, across the app, its icon and the tray, and a redesigned installer panel.
+
 **0.7.0** — A full redesign on the way to 1.0: a navigation rail, a bigger and clearer Monitor page, a rebuilt Lighting page (device list plus inspector, with a glowing live preview), grouped Specs, and Settings as its own page.
 
 **0.6.1** — Rounded window corners on Windows 11.
-
-**0.6.0** — Start with Windows (straight to the tray) and keep running in the tray when closed.
 
 See the [changelog](CHANGELOG.md) for details.
 
