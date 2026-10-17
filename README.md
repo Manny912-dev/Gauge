@@ -65,6 +65,8 @@ If you turned on motherboard and RAM lighting, turn it off in Gauge before unins
 
 ## What's new
 
+**0.8.2** — CPU temperature now uses whichever CPU sensor is actually reporting, instead of falling back to a motherboard reading that stays fixed on many desktops.
+
 **0.8.1** — Fixes CPU temperature and clock freezing a few seconds after launch when Gauge runs without administrator rights.
 
 **0.8.0** — Gauge can drive the screen on NZXT Kraken Z3 coolers (Z53, Z63, Z73) without NZXT CAM: a live gradient gauge showing liquid, CPU or GPU readings.

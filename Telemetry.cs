@@ -71,6 +71,8 @@ internal sealed unsafe class Telemetry : IDisposable
 
     public float CpuLoad, CpuTemp = float.NaN, CpuClock = float.NaN, CpuFan = float.NaN, CpuPower = float.NaN;
     public float CpuClockMax = 1, CpuFanMax = 2000;
+    /// <summary>Where <see cref="CpuTemp"/> came from this tick: a hardware sensor's name, "ACPI thermal zone", or "" when nothing reported.</summary>
+    public string CpuTempSource = "";
     public readonly Ring CpuHistory = new(HistoryLen), MemHistory = new(HistoryLen), DownHistory = new(HistoryLen), UpHistory = new(HistoryLen);
 
     public readonly List<GpuState> Gpus = new();
@@ -89,13 +91,13 @@ internal sealed unsafe class Telemetry : IDisposable
     readonly ManualResetEventSlim _stop = new(false);
     readonly Dictionary<int, float> _gpuByPid = new();
     readonly List<(uint Index, string Name, long Total)> _nics = new();
-    readonly List<ISensor> _cpuClocks = new(), _fans = new();
+    readonly List<ISensor> _cpuClocks = new(), _cpuTemps = new(), _fans = new();
     Thread? _thread;
     PdhQuery? _pdh;
     nint _cZone, _cPerf, _cGpuEngine;
     Computer? _computer;
     IHardware? _cpu, _board;
-    ISensor? _sCpuTemp, _sCpuPower;
+    ISensor? _sCpuPower;
     NetTrace? _netTrace;
     long _idle, _kernel, _user, _rx, _tx, _netTs;
     int _tick, _cpuProbes;
@@ -189,7 +191,12 @@ internal sealed unsafe class Telemetry : IDisposable
                 {
                     case HardwareType.Cpu when _cpu == null:
                         _cpu = hw;
-                        _sCpuTemp = Find(hw, SensorType.Temperature, "Core (Tctl/Tdie)", "CPU Package", "Core Max", "Core Average") ?? First(hw, SensorType.Temperature);
+                        // Every temperature sensor, preferred ones first. Each tick takes the first that reports, so one
+                        // sensor the driver cannot read (e.g. the package on some Intel chips) does not hide the others.
+                        foreach (string name in (ReadOnlySpan<string>)["Core (Tctl/Tdie)", "CPU Package", "Core Max", "Core Average"])
+                            if (Find(hw, SensorType.Temperature, name) is { } s) _cpuTemps.Add(s);
+                        foreach (var s in hw.Sensors)
+                            if (s.SensorType == SensorType.Temperature && !_cpuTemps.Contains(s) && !s.Name.Contains("Distance")) _cpuTemps.Add(s);
                         _sCpuPower = Find(hw, SensorType.Power, "Package", "CPU Package");
                         foreach (var s in hw.Sensors)
                             if (s.SensorType == SensorType.Clock && s.Name.Contains("Core #") && !s.Name.Contains("Effective"))
@@ -313,12 +320,14 @@ internal sealed unsafe class Telemetry : IDisposable
         // Hardware sensors. Cleared every tick: once the CPU sensors are dropped (no kernel driver), the
         // fallbacks below must still run each time, or the last fallback reading would stick for good.
         CpuTemp = CpuPower = CpuClock = float.NaN;
+        string source = "";
         if (_computer != null)
         {
             if (_cpu != null)
             {
                 UpdateTree(_cpu);
-                CpuTemp = Val(_sCpuTemp, true);
+                foreach (var s in _cpuTemps)
+                    if (Val(s, true) is var v && !float.IsNaN(v)) { CpuTemp = v; source = s.Name; break; }
                 CpuPower = Val(_sCpuPower, true);
                 float sum = 0; int n = 0;
                 foreach (var s in _cpuClocks) { float v = Val(s, true); if (!float.IsNaN(v)) { sum += v; n++; } }
@@ -359,7 +368,12 @@ internal sealed unsafe class Telemetry : IDisposable
                 byte* it = items + i * PdhQuery.ItemSize;
                 if (*(uint*)(it + 8) <= 1) kelvin = Math.Max(kelvin, *(double*)(it + 16));
             }
-            if (kelvin > 273) CpuTemp = (float)(kelvin - 273.15);
+            if (kelvin > 273) { CpuTemp = (float)(kelvin - 273.15); source = "ACPI thermal zone"; }
+        }
+        if (source != CpuTempSource)
+        {
+            Log.Write($"cpu temp source: {(source == "" ? "none" : source)}{(float.IsNaN(CpuTemp) ? "" : $" ({CpuTemp:0.0} °C)")}");
+            CpuTempSource = source;
         }
         if (float.IsNaN(CpuClock) && BaseMhz > 0)
         {

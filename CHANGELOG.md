@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.2
+
+- **CPU temperature tries every CPU sensor.** Gauge used to pick one temperature sensor at launch and, if that sensor gave no reading, fall back to the motherboard's thermal zone, which on many desktops reports a fixed number. It now takes the best sensor that is actually reporting each second (package, hottest core, core average, then each core), so the reading follows the CPU on more machines.
+- **Clearer diagnostics.** The log notes which source the CPU temperature comes from whenever it changes, and `--sensor-probe` shows it on every line along with whether Gauge is running as administrator.
+
 ## 0.8.1
 
 - **Fixed: CPU temperature and clock stopped updating** a few seconds after launch whenever Gauge ran without administrator rights (for example after an update restarted it). They now follow the CPU live. Running Gauge as administrator still gives the most accurate CPU readings.

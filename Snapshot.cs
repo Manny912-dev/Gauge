@@ -96,7 +96,7 @@ internal static class Snapshot
         lock (t.Sync)
         {
             sb.AppendLine($"elevated={t.Elevated} netPerProcess={t.NetPerProcess}");
-            sb.AppendLine($"cpu load={t.CpuLoad:0.0} temp={t.CpuTemp:0.0} clock={t.CpuClock:0} fan={t.CpuFan} power={t.CpuPower}");
+            sb.AppendLine($"cpu load={t.CpuLoad:0.0} temp={t.CpuTemp:0.0} ({t.CpuTempSource}) clock={t.CpuClock:0} fan={t.CpuFan} power={t.CpuPower}");
             foreach (var g in t.Gpus) sb.AppendLine($"gpu {g.Name}: load={g.Load} temp={g.Temp} clock={g.Clock} fan={g.Fan} power={g.Power} vram={g.VramUsed}/{g.VramTotal}");
             sb.AppendLine($"net down={t.NetDown:0} up={t.NetUp:0} adapter={t.NetName}");
             float down = 0, up = 0;
@@ -142,6 +142,7 @@ internal static class Snapshot
         var computer = new LibreHardwareMonitor.Hardware.Computer { IsCpuEnabled = true };
         computer.Open();
         var cpu = computer.Hardware.FirstOrDefault(h => h.HardwareType == LibreHardwareMonitor.Hardware.HardwareType.Cpu);
+        sb.AppendLine($"elevated={t.Elevated} cpu=\"{t.CpuName}\" lhmCpu={(cpu == null ? "none" : $"\"{cpu.Name}\"")}");
         for (int i = 0; i < 20; i++)
         {
             Thread.Sleep(1000);
@@ -152,7 +153,7 @@ internal static class Snapshot
             lock (t.Sync)
             {
                 var g = t.Gpus.Count > 0 ? t.Gpus[Math.Min(t.GpuIndex, t.Gpus.Count - 1)] : null;
-                sb.AppendLine($"{i,2}s gauge: load {t.CpuLoad:0} temp {t.CpuTemp:0.0} clock {t.CpuClock:0} | gpu {g?.Load:0} {g?.Temp:0} {g?.Clock:0} | lhm: {raw}");
+                sb.AppendLine($"{i,2}s gauge: load {t.CpuLoad:0} temp {t.CpuTemp:0.0} ({(t.CpuTempSource == "" ? "none" : t.CpuTempSource)}) clock {t.CpuClock:0} | gpu {g?.Load:0} {g?.Temp:0} {g?.Clock:0} | lhm: {raw}");
             }
         }
         computer.Close();
