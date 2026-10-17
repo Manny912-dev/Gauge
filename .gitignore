@@ -10,3 +10,6 @@ release/
 backups/
 third-party/
 HANDOFF.md
+
+# Landing page draft, kept local
+docs/index.html
