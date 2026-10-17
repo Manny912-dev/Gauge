@@ -25,7 +25,7 @@
 
 ### Lighting
 - Control RGB devices without the maker's software: keyboards, mice, headsets, graphics cards, coolers, fan and LED controllers
-- A native driver for Lenovo Legion, LOQ and IdeaPad Gaming 4-zone keyboards, and a built-in [OpenRGB](https://openrgb.org) engine for hundreds of other devices, found automatically
+- Native drivers for Lenovo Legion, LOQ and IdeaPad Gaming 4-zone keyboards and the Keychron Q1 HE, and a built-in [OpenRGB](https://openrgb.org) engine for hundreds of other devices, found automatically
 - Per-zone colours, each device's own effects, brightness and speed, with a live preview
 - Motherboard and RAM lighting with one administrator approval (installs the [PawnIO](https://github.com/namazso/PawnIO.Setup) driver), and a clean way to turn it off again
 - "Apply when Gauge starts" sets your lighting at every sign-in
@@ -64,11 +64,11 @@ If you turned on motherboard and RAM lighting, turn it off in Gauge before unins
 
 ## What's new
 
+**0.7.2** — Lighting support for the Keychron Q1 HE (through VIA), and richer device reports for QMK keyboards.
+
 **0.7.1** — A new logo, a segmented dial, across the app, its icon and the tray, and a redesigned installer panel.
 
 **0.7.0** — A full redesign on the way to 1.0: a navigation rail, a bigger and clearer Monitor page, a rebuilt Lighting page (device list plus inspector, with a glowing live preview), grouped Specs, and Settings as its own page.
-
-**0.6.1** — Rounded window corners on Windows 11.
 
 See the [changelog](CHANGELOG.md) for details.
 

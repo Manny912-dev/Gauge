@@ -42,6 +42,8 @@ internal abstract class LightDevice
     public virtual bool ModeHasSpeed(int mode) => false;
     /// <summary>The mode that choosing a colour switches to, when the current one ignores colours.</summary>
     public virtual int ColourMode => 0;
+    /// <summary>Called on the lighting thread once sends to this device have stopped for a moment, for drivers that persist settings.</summary>
+    public virtual void Settle() { }
     /// <summary>A line for the Lighting tab about how this device is driven.</summary>
     public virtual string Note => Applied ? "Applied to the device." : "This device cannot report its current lighting. What is shown here is sent when you change a setting.";
 }
@@ -221,6 +223,8 @@ internal sealed class Lighting : IDisposable
         var native = new List<LightDevice>();
         try { native.AddRange(Lenovo4ZoneKeyboard.Detect()); }
         catch (Exception ex) { Log.Once("lighting-scan", ex); }
+        try { native.AddRange(QmkViaKeyboard.Detect()); }
+        catch (Exception ex) { Log.Once("lighting-scan-qmk", ex); }
 
         string? rival = null;
         try
@@ -430,6 +434,8 @@ internal sealed class Lighting : IDisposable
                     int input = 0, output = 0, feature = 0;
                     try { input = hid.GetMaxInputReportLength(); output = hid.GetMaxOutputReportLength(); feature = hid.GetMaxFeatureReportLength(); } catch { }
                     string part = $"{usage} in{input} out{output} feat{feature}";
+                    // A QMK raw HID interface: say what it answers, which is what a QMK driver needs.
+                    if (QmkViaKeyboard.Describe(hid) is { } qmk) part += $" [{qmk}]";
                     if (!parts.Contains(part)) parts.Add(part);
                 }
                 result.Add(new UnclaimedDevice(s_rgbVendors[key.Vendor], product, key.Vendor, key.Product, string.Join("; ", parts)));
@@ -449,7 +455,7 @@ internal sealed class Lighting : IDisposable
             sb.AppendLine($"Supported ({Devices.Count}):");
             foreach (var d in Devices)
             {
-                string via = d is OrgbDevice o ? $" via OpenRGB, location {o.Controller.Location}" : "";
+                string via = d is OrgbDevice o ? $" via OpenRGB, location {o.Controller.Location}" : d is QmkViaKeyboard ? $" via VIA ({d.Detail})" : "";
                 sb.AppendLine($"  {d.Kind}: {d.Name} [{d.VendorId:X4}:{d.ProductId:X4}]{via}, {d.ZoneNames.Length} zone(s), modes: {string.Join(", ", d.Modes)}");
             }
             sb.AppendLine($"No driver yet ({Unclaimed.Count}):");
@@ -517,9 +523,20 @@ internal sealed class Lighting : IDisposable
     void Work()
     {
         var batch = new List<(LightDevice Device, LightState State)>();
+        var unsettled = new HashSet<LightDevice>();
         while (!_stop)
         {
-            _wake.WaitOne();
+            // Devices that persist their settings do so once changes stop, not on every slider step.
+            if (!_wake.WaitOne(unsettled.Count > 0 ? 1500 : Timeout.Infinite))
+            {
+                foreach (var d in unsettled)
+                {
+                    try { d.Settle(); }
+                    catch (Exception ex) { Log.Once("lighting-settle-" + d.Key, ex); }
+                }
+                unsettled.Clear();
+                continue;
+            }
             if (_stop) break;
             batch.Clear();
             lock (Sync)
@@ -533,6 +550,7 @@ internal sealed class Lighting : IDisposable
                 try { device.Send(state); }
                 catch (Exception ex) { error = ex.Message; Log.Once("lighting-send-" + device.Key, ex); }
                 lock (Sync) { device.Error = error; device.Applied |= error == null; }
+                if (error == null) unsettled.Add(device);
             }
             Changed?.Invoke();
             Thread.Sleep(40); // a slider drag becomes at most ~25 writes a second

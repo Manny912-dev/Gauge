@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.2 — Keychron Q1 HE
+
+- **Keychron Q1 HE lighting.** Gauge now drives the Q1 HE's RGB through VIA, the protocol in its stock QMK firmware: all 22 of its effects, colour, brightness and speed. Gauge reads what the keyboard is showing when it starts, and saves your change on the keyboard a moment after you stop adjusting. New and not yet tried on a real Q1 HE, so reports are welcome.
+- **Better device reports.** For QMK keyboards and dongles Gauge cannot drive yet, the report now includes what their VIA interface answers, which is what adding them needs.
+
 ## 0.7.1 — a new mark
 
 - **New logo.** A segmented dial: nine segments, six of them lit, like a meter two thirds of the way up. It is on the app icon, the taskbar and tray, the navigation rail and the tray menu.

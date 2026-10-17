@@ -11,7 +11,7 @@
     <SelfContained>false</SelfContained>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon Condition="Exists('gauge.ico')">gauge.ico</ApplicationIcon>
-    <Version>0.7.1</Version>
+    <Version>0.7.2</Version>
     <Product>Gauge</Product>
     <AssemblyTitle>Gauge</AssemblyTitle>
     <Description>System monitor</Description>
