@@ -30,6 +30,7 @@
 - Motherboard and RAM lighting with one administrator approval (installs the [PawnIO](https://github.com/namazso/PawnIO.Setup) driver), and a clean way to turn it off again
 - "Apply when Gauge starts" sets your lighting at every sign-in
 - Devices without a driver yet are listed, with a report you can copy and send so support can be added
+- The screen on NZXT Kraken Z3 coolers (Z53, Z63, Z73): a live gradient gauge showing liquid, CPU or GPU temperature, load or clock, with a preview, without NZXT CAM (close CAM while Gauge drives it)
 
 <p align="center">
   <img src="docs/screenshots/lighting.gif" alt="Gauge's Lighting page: the Lenovo 4-zone keyboard set to magenta, then cyan, then the Breathing and Wave effects, then back to the accent colour, with the lit zone preview following each change" width="900">
@@ -64,9 +65,9 @@ If you turned on motherboard and RAM lighting, turn it off in Gauge before unins
 
 ## What's new
 
-**0.7.2** — Lighting support for the Keychron Q1 HE (through VIA), and richer device reports for QMK keyboards.
+**0.8.0** — Gauge can drive the screen on NZXT Kraken Z3 coolers (Z53, Z63, Z73) without NZXT CAM: a live gradient gauge showing liquid, CPU or GPU readings.
 
-**0.7.1** — A new logo, a segmented dial, across the app, its icon and the tray, and a redesigned installer panel.
+**0.7.2** — Lighting support for the Keychron Q1 HE (through VIA), and richer device reports for QMK keyboards.
 
 **0.7.0** — A full redesign on the way to 1.0: a navigation rail, a bigger and clearer Monitor page, a rebuilt Lighting page (device list plus inspector, with a glowing live preview), grouped Specs, and Settings as its own page.
 
@@ -98,6 +99,8 @@ The app is written in C# with Windows Forms, but nothing on screen is a standard
 |---|---|
 | `--snapshot <folder>` | Renders every page to PNG offscreen with live data, plus sensor readings and a lighting device report |
 | `--tray-menu <file.png>` | Opens the tray menu and saves a picture of it |
+| `--kraken-test <folder>` | Runs the Kraken screen code against a simulated cooler and checks the drawing against reference values |
+| `--qmk-test <file>` | Runs the QMK/VIA keyboard driver against a simulated keyboard |
 | `--banner <file.png>` | Draws the banner image (`docs/banner.png`) |
 | `--orgb-test <file>` | Sends colours to every OpenRGB device and reads them back |
 | `--light-test <RRGGBB> <file>` | Sends one colour to the native keyboard driver |

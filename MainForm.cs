@@ -45,6 +45,8 @@ internal sealed unsafe class MainForm : Form
         _updater.Start();
         _renderer.Lights = _lighting;
         _lighting.Changed += OnTelemetry;
+        _lighting.Changed += OnLightingChanged;
+        _lighting.ReadSensor = ReadForScreen;
         _lighting.ScanAsync(delayMs: 1500); // read-only; after the window is up
         _invalidate = Invalidate;
 
@@ -169,7 +171,33 @@ internal sealed unsafe class MainForm : Form
         Close();
     }
 
-    void UpdatePause() => _telemetry.Paused = _hidden || WindowState == FormWindowState.Minimized;
+    // The Kraken's screen may show a CPU or GPU value, which needs sampling even while the window is away.
+    void UpdatePause() => _telemetry.Paused = (_hidden || WindowState == FormWindowState.Minimized) && !(_lighting.Screen?.NeedsTelemetry ?? false);
+
+    void OnLightingChanged()
+    {
+        if (!IsHandleCreated || IsDisposed) return;
+        try { BeginInvoke(UpdatePause); } catch (InvalidOperationException) { }
+    }
+
+    /// <summary>A CPU or GPU value for the Kraken's screen, read on the screen's own thread.</summary>
+    float ReadForScreen(LcdReading reading)
+    {
+        lock (_telemetry.Sync)
+        {
+            var gpu = _telemetry.Gpus.Count > 0 ? _telemetry.Gpus[Math.Min(_telemetry.GpuIndex, _telemetry.Gpus.Count - 1)] : null;
+            return reading switch
+            {
+                LcdReading.CpuTemp => _telemetry.CpuTemp,
+                LcdReading.CpuLoad => _telemetry.CpuLoad,
+                LcdReading.CpuClock => _telemetry.CpuClock,
+                LcdReading.GpuTemp => gpu?.Temp ?? float.NaN,
+                LcdReading.GpuLoad => gpu?.Load ?? float.NaN,
+                LcdReading.GpuClock => gpu?.Clock ?? float.NaN,
+                _ => float.NaN,
+            };
+        }
+    }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
@@ -309,6 +337,11 @@ internal sealed unsafe class MainForm : Form
             case Renderer.HitUpdate:
                 if (_updater.ApplyOnExit()) Quit(); // the updater swaps versions once this window is gone, then reopens Gauge
                 return;
+            case >= Renderer.HitLcdItem and <= Renderer.HitLcdLogo:
+                if (id is Renderer.HitLcdHue1 or Renderer.HitLcdHue2) _drag = id;
+                _renderer.ScreenPress(id, e.X);
+                UpdatePause();
+                break;
             case >= Renderer.HitSwatch and < Renderer.HitSwatch + 8: SetAccent(Renderer.Presets[id - Renderer.HitSwatch]); break;
             case Renderer.HitMonitor: ShowPage(Renderer.PageMonitor); break;
             case Renderer.HitSpecs: ShowPage(Renderer.PageSpecs); break;

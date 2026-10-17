@@ -22,6 +22,11 @@ static class Program
         if (args.Length >= 2 && args[0] == "--splash") { Snapshot.WriteSplash(args[1], args.Length >= 3 ? args[2] : null); return; }
         if (args.Length >= 2 && args[0] == "--board-lighting") Environment.Exit(BoardLighting.Run(args[1]));
         if (args.Length >= 2 && args[0] == "--tray-menu") { Snapshot.TrayMenu(args[1]); return; }
+        if (args.Length >= 2 && args[0] == "--kraken-test")
+        {
+            try { Environment.Exit(KrakenTest.Run(args[1]) == 0 ? 0 : 1); }
+            catch (Exception ex) { Directory.CreateDirectory(args[1]); File.WriteAllText(Path.Combine(args[1], "report.txt"), "CRASH " + ex); Environment.Exit(2); }
+        }
         if (args.Length >= 2 && args[0] == "--qmk-test") { File.WriteAllText(args[1], QmkViaKeyboard.SelfTest(out int failed)); Environment.Exit(failed == 0 ? 0 : 1); }
         if (args.Length >= 2 && args[0] == "--orgb-test") { Snapshot.OpenRgbTest(args[1]); return; }
         if (args.Length >= 3 && args[0] == "--light-test") { Snapshot.LightTest(args[1], args[2]); return; }

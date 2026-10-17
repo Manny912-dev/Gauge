@@ -82,6 +82,7 @@ internal sealed partial class Renderer
             if (id is >= HitLightDevice and < HitLightDevice + MaxDeviceChips)
             {
                 _lightIndex = id - HitLightDevice;
+                _screenSelected = false;
                 Array.Fill(_lightSel, true);
                 _lightHueSynced = false;
                 return false;
@@ -130,6 +131,7 @@ internal sealed partial class Renderer
     /// <summary>Handles a drag along the hue or saturation strip. True when the lighting changed.</summary>
     public bool LightingDrag(int id, float x)
     {
+        if (id is HitLcdHue1 or HitLcdHue2) { ScreenPress(id, x); return false; }
         if (Lights == null) return false;
         lock (Lights.Sync)
         {
@@ -172,6 +174,8 @@ internal sealed partial class Renderer
         {
             if (_lightIndex >= lights.Devices.Count) { _lightIndex = 0; Array.Fill(_lightSel, true); _lightHueSynced = false; }
             var d = LightTarget;
+            var screen = lights.Screen;
+            _screenShown = screen != null && (_screenSelected || d == null);
             // Laid out at full height and scrolled when the window is too short for it.
             var state = g.Save();
             g.SetClip(RectangleF.FromLTRB(RailWidth * _s + 1, a.Y - 2 * _s, a.Right + 20 * _s, a.Bottom + 18 * _s));
@@ -180,7 +184,7 @@ internal sealed partial class Renderer
             float listW = Math.Clamp(a.Width * 0.3f, 226 * _s, 280 * _s);
             float bottom = DeviceColumn(g, new RectangleF(a.X, a.Y, listW, a.Height), lights);
             var right = RectangleF.FromLTRB(a.X + listW + 18 * _s, a.Y, a.Right, a.Bottom);
-            bottom = MathF.Max(bottom, d == null ? NoLighting(g, right, lights) : Editor(g, right, d, lights));
+            bottom = MathF.Max(bottom, _screenShown ? ScreenEditor(g, right, screen!) : d == null ? NoLighting(g, right, lights) : Editor(g, right, d, lights));
             g.Restore(state);
             MaxScroll = MathF.Max(0, bottom + Scroll - view.Bottom);
             if (Scroll > MaxScroll) Scroll = MaxScroll;
@@ -195,13 +199,14 @@ internal sealed partial class Renderer
         float top = GroupHeading(g, "Devices", a.X, y);
         if (lights.EngineBusy) TextRight(g, "Scanning…", _fLabel, Faint, a.Right, y + 12 * _s);
 
-        int n = Math.Min(lights.Devices.Count, MaxDeviceChips);
+        int n = Math.Min(lights.Devices.Count, MaxDeviceChips), rows = n + (lights.Screen != null ? 1 : 0);
         float itemH = 58 * _s;
-        var plate = new RectangleF(a.X, top, a.Width, Math.Max(1, n) * itemH);
+        var plate = new RectangleF(a.X, top, a.Width, Math.Max(1, rows) * itemH);
         Plate(g, plate);
-        if (n == 0) RowText(g, "None yet", "Supported hardware shows up here", plate.X + 16 * _s, plate.Y, plate.Width - 32 * _s, itemH);
-        int selected = Math.Clamp(_lightIndex, 0, Math.Max(0, lights.Devices.Count - 1));
+        if (rows == 0) RowText(g, "None yet", "Supported hardware shows up here", plate.X + 16 * _s, plate.Y, plate.Width - 32 * _s, itemH);
+        int selected = _screenShown ? -1 : Math.Clamp(_lightIndex, 0, Math.Max(0, lights.Devices.Count - 1));
         for (int i = 0; i < n; i++) DeviceItem(g, new RectangleF(plate.X, plate.Y + i * itemH, plate.Width, itemH), lights.Devices[i], i, i == selected);
+        if (lights.Screen != null) ScreenItem(g, new RectangleF(plate.X, plate.Y + n * itemH, plate.Width, itemH), lights.Screen, n > 0, _screenShown);
         y = plate.Bottom + 12 * _s;
 
         if (lights.EngineProblem != null)

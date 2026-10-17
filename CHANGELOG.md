@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.0 — the Kraken's screen
+
+- **NZXT Kraken Z3 screen.** Gauge can draw the 320 × 320 screen on Kraken Z53, Z63 and Z73 coolers without NZXT CAM: a gradient ring with a dot at the reading (or a full-screen gradient), the number, its unit and a label. It can show liquid, CPU or GPU temperature, load or clock, in five colour pairs or any two hues, at four brightness levels and four rotations. A live preview on the Lighting page shows exactly what the cooler will show, along with the liquid temperature and pump speed.
+- Gauge leaves the screen to the Kraken until you choose Gauge. Only one program can hold the cooler, so Gauge waits while NZXT CAM is running and says so, and it hands the screen back to the Kraken when you switch back or quit.
+
 ## 0.7.2 — Keychron Q1 HE
 
 - **Keychron Q1 HE lighting.** Gauge now drives the Q1 HE's RGB through VIA, the protocol in its stock QMK firmware: all 22 of its effects, colour, brightness and speed. Gauge reads what the keyboard is showing when it starts, and saves your change on the keyboard a moment after you stop adjusting. New and not yet tried on a real Q1 HE, so reports are welcome.

@@ -65,6 +65,20 @@ internal static class Snapshot
         r.Scroll = 1000;
         Save(r, t, (int)(880 * s), (int)(580 * s), Path.Combine(dir, "lighting-small-scrolled.png"));
         r.Scroll = 0;
+        // The Kraken's screen, as a stand-in with no cooler behind it
+        var screen = new KrakenLcd();
+        lights.Screen = screen;
+        r.ScreenPress(Renderer.HitLcdItem, 0);
+        screen.ShowForSnapshot(new LcdSettings(), 35, "The Kraken is showing its own screen", false, float.NaN, float.NaN);
+        Save(r, t, w, h, Path.Combine(dir, "lighting-kraken.png"));
+        screen.ShowForSnapshot(new LcdSettings { Drive = true, Reading = LcdReading.CpuLoad, Color1 = Color.FromArgb(255, 0xFF, 0xA5, 0x3C), Color2 = Color.FromArgb(255, 0xFF, 0x4D, 0x4D) }, 23,
+            "NZXT CAM is running. Close it to let Gauge drive the screen", true, 31.6f, 2140);
+        Save(r, t, w, h, Path.Combine(dir, "lighting-kraken-cam.png"));
+        r.Scroll = 1000;
+        Save(r, t, w, h, Path.Combine(dir, "lighting-kraken-scrolled.png"));
+        r.Scroll = 0;
+        lights.Screen = null;
+        screen.Dispose();
         r.LightingPress(Renderer.HitLightDevice, 0);
         lock (lights.Sync) lights.Devices.RemoveAll(d => d is SampleLight);
         lights.Unclaimed.Clear();

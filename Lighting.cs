@@ -181,6 +181,10 @@ internal sealed class Lighting : IDisposable
     /// <summary>A running vendor lighting app that will fight Gauge for the device, or null.</summary>
     public string? Rival;
     public bool RestoreOnLaunch;
+    /// <summary>The NZXT Kraken Z3's screen, when one is connected. Separate from the lighting devices: it shows images, not colours.</summary>
+    public KrakenLcd? Screen;
+    /// <summary>Reads CPU and GPU values for the screen; set by the window.</summary>
+    public Func<LcdReading, float>? ReadSensor;
     /// <summary>Motherboard and RAM lighting is set up, and whether its protected engine is older than Gauge's.</summary>
     public bool BoardEnabled, BoardNeedsRefresh;
     public event Action? Changed;
@@ -239,7 +243,18 @@ internal sealed class Lighting : IDisposable
         catch { }
 
         foreach (var d in native) Load(d);
+        // The Kraken's screen: found by listing devices only, so it is safe while NZXT CAM holds the cooler.
+        bool kraken = false;
+        try { kraken = KrakenUsb.Find() != null; } catch (Exception ex) { Log.Once("lighting-kraken", ex); }
+        if (kraken && Screen == null)
+        {
+            var screen = new KrakenLcd { ReadSensor = ReadSensor };
+            screen.Changed += () => Changed?.Invoke();
+            Screen = screen;
+            screen.Start();
+        }
         var unclaimed = FindUnclaimed(native);
+        if (Screen != null) unclaimed.RemoveAll(u => u.VendorId == KrakenUsb.Vendor && u.ProductId == KrakenUsb.Product);
         lock (Sync)
         {
             Devices.RemoveAll(d => d is not OrgbDevice);
@@ -461,6 +476,7 @@ internal sealed class Lighting : IDisposable
             sb.AppendLine($"No driver yet ({Unclaimed.Count}):");
             foreach (var u in Unclaimed) sb.AppendLine($"  {u.Vendor} {u.Product} [{u.VendorId:X4}:{u.ProductId:X4}]  {u.Interfaces}");
             if (EngineProblem != null) sb.AppendLine($"Lighting engine: {EngineProblem}");
+            if (Screen != null) sb.AppendLine($"Screen: {Screen.Name} [{KrakenUsb.Vendor:X4}:{KrakenUsb.Product:X4}], {(Screen.Settings.Drive ? "drawn by Gauge" : "Kraken's own screen")}, {Screen.Status}");
             if (Rival != null) sb.AppendLine($"Lighting app running: {Rival}");
         }
         return sb.ToString().TrimEnd();
@@ -566,5 +582,6 @@ internal sealed class Lighting : IDisposable
         // connection, and the job object would end the engine on exit regardless.
         _engine.Stop();
         _client?.Dispose();
+        Screen?.Dispose(); // hands the screen back to the Kraken
     }
 }

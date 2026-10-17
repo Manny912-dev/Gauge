@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gauge — system monitor and RGB control for Windows</title>
+<meta name="description" content="Gauge is a free, open-source system monitor and RGB lighting controller for Windows. No account, no telemetry, no vendor apps. About 40 MB of memory.">
+<meta name="theme-color" content="#000000">
+<meta property="og:title" content="Gauge — system monitor and RGB control for Windows">
+<meta property="og:description" content="Watch every reading. Set every light. Free, open source, about 40 MB of memory.">
+<meta property="og:image" content="screenshots/monitor.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke-width='8'%3E%3Cg stroke='%23FFA53C'%3E%3Cpath d='M15.03 52.97A24 24 0 0 1 9.77 45.03M8.72 41.85A24 24 0 0 1 8.28 32.34M9.02 29.07A24 24 0 0 1 13.53 20.68M15.84 18.26A24 24 0 0 1 24.01 13.37M27.24 12.48A24 24 0 0 1 36.76 12.48M39.99 13.37A24 24 0 0 1 48.16 18.26'/%3E%3C/g%3E%3Cg stroke='%233a3d44'%3E%3Cpath d='M50.47 20.68A24 24 0 0 1 54.98 29.07M55.72 32.34A24 24 0 0 1 55.28 41.85M54.23 45.03A24 24 0 0 1 48.97 52.97'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Surfaces: the GIFs are shot on pure black, so the page is too and they sit in it seamlessly. */
+  --bg: #000;
+  --plate: #0c0d10;
+  --plate-2: #121317;
+  --raised: #1b1d22;
+  --line: rgba(255,255,255,.07);
+  --line-2: rgba(255,255,255,.12);
+  /* Text, matching the app's Ink / Soft / Muted / Faint. */
+  --ink: #f2f3f5;
+  --soft: #c9cdd3;
+  --muted: #9aa0a9;
+  --faint: #7a808a;
+  /* One accent, the app's default amber. The Settings demo can change it. */
+  --accent: #ffa53c;
+  --accent-ink: #160d02;
+  --accent-12: color-mix(in oklab, var(--accent) 12%, transparent);
+  --accent-20: color-mix(in oklab, var(--accent) 20%, transparent);
+  --accent-35: color-mix(in oklab, var(--accent) 35%, transparent);
+
+  --display: "Barlow", "Bahnschrift", "DIN Alternate", system-ui, sans-serif;
+  --body: "Geist", "Segoe UI", system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --wrap: 1180px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --radius: 14px;
+  --ease: cubic-bezier(.2,.7,.2,1);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--soft);
+  font: 400 16px/1.6 var(--body); -webkit-font-smoothing: antialiased; overflow-x: hidden;
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--accent); color: var(--accent-ink); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+.wrap { width: 100%; max-width: calc(var(--wrap) + var(--gutter) * 2); margin: 0 auto; padding: 0 var(--gutter); }
+.eyebrow {
+  font: 600 12px/1 var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 10px; margin: 0;
+}
+.eyebrow::before { content: ""; width: 14px; height: 3px; background: var(--accent); border-radius: 1px; }
+h1, h2, h3 { font-family: var(--display); color: var(--ink); margin: 0; font-weight: 600; letter-spacing: -.02em; }
+h2 { font-size: clamp(34px, 4.6vw, 56px); line-height: 1.04; }
+h3 { font-size: clamp(28px, 3.2vw, 40px); line-height: 1.08; }
+.dim { color: var(--faint); }
+p { margin: 0; }
+kbd {
+  font: 500 11px/1 var(--mono); color: var(--soft); background: var(--plate-2); border: 1px solid var(--line-2);
+  border-bottom-width: 2px; border-radius: 5px; padding: 4px 6px;
+}
+
+/* Buttons */
+.btn {
+  --h: 50px; height: var(--h); padding: 0 22px; border-radius: 11px; display: inline-flex; align-items: center; gap: 10px;
+  font: 600 15px/1 var(--body); letter-spacing: -.005em; white-space: nowrap; cursor: pointer; border: 0;
+  transition: transform .25s var(--ease), background .25s, box-shadow .3s, border-color .25s, color .25s;
+}
+.btn svg { width: 17px; height: 17px; flex: none; }
+.btn-primary {
+  background: var(--accent); color: var(--accent-ink);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 60%, white) inset, 0 10px 30px -10px var(--accent-35);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 60%, white) inset, 0 16px 40px -12px color-mix(in oklab, var(--accent) 60%, transparent); }
+.btn-ghost { background: rgba(255,255,255,.04); color: var(--ink); box-shadow: 0 0 0 1px var(--line-2) inset; }
+.btn-ghost:hover { background: rgba(255,255,255,.08); transform: translateY(-2px); }
+.btn-sm { --h: 38px; padding: 0 16px; font-size: 14px; border-radius: 9px; }
+
+/* ---------- Nav ---------- */
+.nav {
+  position: fixed; inset: 0 0 auto; z-index: 50; height: 68px;
+  transition: background .35s, border-color .35s, backdrop-filter .35s; border-bottom: 1px solid transparent;
+}
+.nav.scrolled { background: rgba(0,0,0,.72); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border-color: var(--line); }
+.nav .wrap { height: 100%; display: flex; align-items: center; gap: 32px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font: 700 21px/1 var(--display); color: var(--ink); letter-spacing: -.01em; }
+.brand svg { width: 28px; height: 28px; }
+.nav-links { display: flex; gap: 4px; margin-left: auto; }
+.nav-links a { padding: 8px 14px; border-radius: 8px; font-size: 14px; color: var(--muted); transition: color .2s, background .2s; }
+.nav-links a:hover { color: var(--ink); background: rgba(255,255,255,.05); }
+.nav-right { display: flex; align-items: center; gap: 10px; }
+.icon-link { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 9px; color: var(--muted); transition: color .2s, background .2s; }
+.icon-link:hover { color: var(--ink); background: rgba(255,255,255,.06); }
+.icon-link svg { width: 19px; height: 19px; }
+
+/* The dial mark */
+.mark path { fill: none; stroke-width: 8; stroke: #34373e; transition: stroke .35s var(--ease); }
+.mark path.on { stroke: var(--accent); }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; padding: 148px 0 0; isolation: isolate; }
+.hero-chart { position: absolute; inset: 0 0 auto; height: 640px; z-index: -1; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); }
+.hero-chart canvas { width: 100%; height: 100%; display: block; }
+.hero-copy { text-align: center; display: flex; flex-direction: column; align-items: center; }
+.hero-dial { width: 76px; height: 76px; margin-bottom: 28px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; border-radius: 99px;
+  background: rgba(255,255,255,.04); box-shadow: 0 0 0 1px var(--line-2) inset; font-size: 13.5px; color: var(--soft);
+  transition: background .25s; margin-bottom: 26px;
+}
+.pill:hover { background: rgba(255,255,255,.08); }
+.pill b { font: 600 11px/1 var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); padding: 5px 8px; border-radius: 99px; }
+.pill svg { width: 14px; height: 14px; color: var(--faint); transition: transform .25s var(--ease); }
+.pill:hover svg { transform: translateX(3px); }
+.hero h1 { font-size: clamp(46px, 8vw, 104px); line-height: .96; letter-spacing: -.035em; font-weight: 600; }
+.hero h1 .line { display: block; }
+.hero h1 .line + .line { color: transparent; background: linear-gradient(92deg, var(--ink) 10%, var(--accent) 95%); -webkit-background-clip: text; background-clip: text; }
+.hero .lead { margin-top: 26px; max-width: 620px; font-size: clamp(17px, 1.6vw, 19px); line-height: 1.6; color: var(--muted); }
+.hero .lead strong { color: var(--soft); font-weight: 500; }
+.cta-row { display: flex; gap: 12px; margin-top: 36px; flex-wrap: wrap; justify-content: center; }
+.meta { margin-top: 20px; font: 400 13px/1.5 var(--mono); color: var(--faint); display: flex; gap: 8px 18px; flex-wrap: wrap; justify-content: center; }
+.meta span { display: inline-flex; align-items: center; gap: 8px; }
+.meta span + span::before { content: ""; width: 3px; height: 3px; border-radius: 50%; background: var(--faint); margin-right: 10px; }
+
+.hero-shot { margin: 56px auto 0; max-width: 1240px; padding: 0 var(--gutter); }
+/* The hero GIF carries its own title above the window; crop it off and let the edges fall into the page. */
+.hero-crop { overflow: hidden; aspect-ratio: 1200 / 625;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 3%, #000 90%, transparent);
+          mask-image: linear-gradient(180deg, transparent 0, #000 3%, #000 90%, transparent); }
+.hero-crop img { width: 100%; margin-top: -15.5%; }
+
+/* ---------- Reveal ---------- */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
+.reveal.in { opacity: 1; transform: none; }
+.reveal[data-d="1"] { transition-delay: .08s; } .reveal[data-d="2"] { transition-delay: .16s; } .reveal[data-d="3"] { transition-delay: .24s; }
+.load { animation: rise 1s var(--ease) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } }
+
+/* ---------- Why ---------- */
+section { position: relative; }
+.why { padding: 120px 0 40px; }
+.why-head { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: end; }
+.why-head h2 { margin-top: 20px; max-width: 760px; }
+.replace { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; font-size: 14px; color: var(--faint); }
+.replace-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.chip-x { position: relative; padding: 7px 12px; border-radius: 8px; background: var(--plate); box-shadow: 0 0 0 1px var(--line) inset; color: var(--muted); }
+.chip-x::after {
+  content: ""; position: absolute; left: 10px; right: 10px; top: 50%; height: 1.5px; background: var(--hot, #ff5a4d);
+  transform: scaleX(0); transform-origin: left; transition: transform .6s var(--ease);
+}
+.in .chip-x::after { transform: scaleX(1); }
+.in .chip-x:nth-child(2)::after { transition-delay: .25s; } .in .chip-x:nth-child(3)::after { transition-delay: .5s; }
+.replace-to { display: inline-flex; align-items: center; gap: 10px; color: var(--soft); }
+.replace-to svg.mark { width: 20px; height: 20px; }
+
+.figures {
+  margin-top: 64px; display: grid; grid-template-columns: repeat(4, 1fr);
+  background: linear-gradient(180deg, var(--plate-2), var(--plate)); border-radius: 18px; box-shadow: 0 0 0 1px var(--line) inset;
+}
+.figure { padding: 32px 30px 34px; position: relative; }
+.figure + .figure::before { content: ""; position: absolute; left: 0; top: 30px; bottom: 30px; width: 1px; background: var(--line); }
+.fig-label { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 14px; }
+.fig-label svg { width: 17px; height: 17px; color: var(--faint); }
+.fig-value { margin-top: 18px; font: 500 clamp(48px, 5vw, 64px)/1 var(--display); color: var(--ink); letter-spacing: -.03em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; }
+.fig-value small { font-size: 18px; color: var(--muted); letter-spacing: 0; font-weight: 500; }
+.fig-value .tilde { color: var(--faint); font-weight: 400; margin-right: -2px; }
+.fig-note { margin-top: 14px; font-size: 14.5px; line-height: 1.55; color: var(--faint); max-width: 30ch; }
+.fig-meter { margin-top: 20px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.07); overflow: hidden; }
+.fig-meter i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 2px; transition: width 1.6s var(--ease) .2s; }
+.in .fig-meter i { width: var(--w); }
+
+/* ---------- Features ---------- */
+.features { padding: 140px 0 40px; }
+.features-intro { display: flex; justify-content: space-between; align-items: end; gap: 40px; margin-bottom: 80px; }
+.features-intro h2 { margin-top: 20px; }
+.features-intro p { max-width: 380px; color: var(--muted); }
+.features-intro p kbd { margin: 0 1px; }
+.features-grid { display: grid; grid-template-columns: 92px 1fr; gap: 48px; }
+
+/* A copy of the app's navigation rail that follows you down the page. */
+.rail { position: sticky; top: 108px; align-self: start; display: flex; flex-direction: column; gap: 6px; padding: 10px 8px;
+  background: #08090b; border-radius: 16px; box-shadow: 0 0 0 1px var(--line) inset; }
+.rail a { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px 10px; border-radius: 11px;
+  font: 500 12px/1 var(--body); color: var(--faint); transition: color .3s, background .3s; }
+.rail a svg { width: 22px; height: 22px; transition: color .3s; }
+.rail a:hover { color: var(--soft); }
+.rail a.active { color: var(--ink); background: var(--plate-2); }
+.rail a.active svg { color: var(--accent); }
+.rail-bar { position: absolute; left: -8px; width: 3px; height: 30px; border-radius: 0 2px 2px 0; background: var(--accent); transition: transform .5s var(--ease); top: 0; }
+.rail-sep { flex: 1; min-height: 40px; }
+
+.chapter { padding-bottom: 150px; }
+.chapter:last-child { padding-bottom: 60px; }
+.ch-meta { display: flex; align-items: center; gap: 16px; }
+.ch-num { font: 500 13px/1 var(--mono); color: var(--faint); }
+.ch-keys { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+.ch-head { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px 56px; align-items: end; }
+.ch-head .ch-meta { grid-column: 1 / -1; padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.ch-head p { color: var(--muted); font-size: 17px; max-width: 46ch; }
+
+.shot { position: relative; margin: 44px 0 0; isolation: isolate; }
+.shot img { width: 100%; height: auto; mix-blend-mode: screen; position: relative; }
+/* The glow hugs the window inside the GIF: an outer shadow is never drawn under its own box, so the window stays clean. */
+.shot .halo { position: absolute; left: 7.6%; right: 7.6%; top: 10.6%; bottom: 9.6%; border-radius: 10px; z-index: -1;
+  box-shadow: 0 0 90px 6px var(--glow, var(--accent-20)), 0 30px 140px 10px var(--glow2, var(--accent-12)); transition: box-shadow 1s; }
+.shot.rgb .halo { animation: rgb 9s linear infinite; }
+@keyframes rgb {
+  0%, 100% { box-shadow: 0 0 90px 8px rgba(160, 40, 255, .32), 0 30px 160px 14px rgba(160, 40, 255, .18); }
+  33% { box-shadow: 0 0 90px 8px rgba(30, 210, 240, .30), 0 30px 160px 14px rgba(30, 210, 240, .16); }
+  66% { box-shadow: 0 0 90px 8px rgba(255, 60, 200, .30), 0 30px 160px 14px rgba(255, 60, 200, .16); }
+}
+
+.points { list-style: none; padding: 0; margin: 40px 0 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid var(--line); }
+.points.two { grid-template-columns: repeat(2, 1fr); }
+.points li { padding: 26px 28px 26px 0; border-bottom: 1px solid var(--line); }
+.points li b { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 500; font-size: 15.5px; }
+.points li b::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 12px var(--accent-35); flex: none; }
+.points li span { display: block; margin-top: 8px; font-size: 14.5px; color: var(--faint); line-height: 1.6; padding-left: 18px; }
+.points li span em { font-style: normal; color: var(--muted); }
+
+/* Temperature legend in Monitor */
+.temps { display: inline-flex; gap: 6px; margin-left: 18px; vertical-align: middle; }
+.temps i { width: 22px; height: 6px; border-radius: 3px; display: inline-block; }
+
+/* Device chips in Lighting */
+.devices { margin-top: 36px; display: flex; flex-wrap: wrap; gap: 8px; }
+.device { display: inline-flex; align-items: center; gap: 9px; padding: 9px 14px 9px 12px; border-radius: 10px; background: var(--plate); box-shadow: 0 0 0 1px var(--line) inset; font-size: 14px; color: var(--soft); }
+.device svg { width: 17px; height: 17px; color: var(--faint); }
+.native { margin-top: 14px; font-size: 14px; color: var(--faint); }
+.native b { color: var(--soft); font-weight: 500; }
+
+/* Specs clipboard */
+.specs-row { display: grid; grid-template-columns: 1fr 360px; gap: 40px; align-items: start; margin-top: 40px; }
+.specs-row .points { margin-top: 0; grid-template-columns: 1fr; }
+.clip { background: var(--plate); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--line) inset; overflow: hidden; }
+.clip-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.clip-btn { font: 500 13px/1 var(--body); color: var(--ink); background: var(--raised); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: background .2s, color .2s; }
+.clip-btn:hover { background: #24272d; }
+.clip-btn.done { color: var(--accent); }
+.clip pre { margin: 0; padding: 16px 18px 20px; font: 400 12.5px/1.75 var(--mono); color: var(--muted); white-space: pre; overflow: hidden; }
+.clip pre b { color: var(--soft); font-weight: 500; }
+
+/* Settings accent demo, built like the app's own Settings rows */
+.accent-demo { margin-top: 40px; background: linear-gradient(180deg, var(--plate-2), var(--plate)); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--line) inset; }
+.ad-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 24px; }
+.ad-row + .ad-row { border-top: 1px solid var(--line); }
+.ad-row .t b { display: block; color: var(--ink); font-weight: 500; font-size: 15px; }
+.ad-row .t span { font-size: 13.5px; color: var(--faint); }
+.ad-row .t code { font: 400 13px var(--mono); color: var(--muted); }
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+.sw { width: 28px; height: 28px; border-radius: 50%; border: 0; cursor: pointer; background: var(--c); position: relative; transition: transform .2s var(--ease); }
+.sw:hover { transform: scale(1.12); }
+.sw[aria-pressed="true"]::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; box-shadow: 0 0 0 2px var(--ink); }
+.hue { -webkit-appearance: none; appearance: none; width: min(300px, 100%); height: 10px; border-radius: 5px; cursor: pointer;
+  background: linear-gradient(90deg, #ff3d3d, #ffa53c 9%, #fff23c 17%, #4ade4a 33%, #3ccfe0 50%, #3d6bff 66%, #b03dff 80%, #ff3dd2 90%, #ff3d3d); }
+.hue::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.6); }
+.hue::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; }
+.ad-note { padding: 0 24px 18px; font-size: 13px; color: var(--faint); display: flex; align-items: center; gap: 8px; }
+.ad-note button { background: none; border: 0; color: var(--muted); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; }
+
+/* ---------- Privacy ---------- */
+.privacy { padding: 140px 0; overflow: hidden; }
+.privacy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+.privacy h2 { margin-top: 20px; font-size: clamp(40px, 5.6vw, 72px); }
+.privacy .body { margin-top: 26px; font-size: 17px; color: var(--muted); max-width: 46ch; }
+.nos { display: flex; gap: 22px; margin-top: 34px; flex-wrap: wrap; }
+.nos span { display: inline-flex; align-items: center; gap: 9px; color: var(--soft); font-size: 15px; }
+.nos svg { width: 18px; height: 18px; color: var(--accent); }
+.netlog { background: #07080a; border-radius: 16px; box-shadow: 0 0 0 1px var(--line) inset, 0 40px 80px -40px rgba(0,0,0,.8); font: 400 13px/1.6 var(--mono); }
+.netlog-top { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.netlog-top .live { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; text-transform: none; letter-spacing: 0; color: var(--faint); }
+.netlog-top .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.nl-sec { padding: 16px 18px; }
+.nl-sec + .nl-sec { border-top: 1px solid var(--line); }
+.nl-h { color: var(--faint); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 10px; }
+.nl-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 7px 0; color: var(--soft); align-items: center; }
+.nl-row .why-t { color: var(--faint); }
+.tag { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--accent-12); color: var(--accent); }
+.tag.off { background: rgba(255,255,255,.05); color: var(--faint); }
+.nl-row.blocked { color: var(--faint); }
+.nl-row.blocked s { text-decoration-color: rgba(255,90,77,.7); text-decoration-thickness: 1.5px; }
+.nl-end { color: var(--faint); padding: 4px 0 2px; }
+
+/* ---------- Inside ---------- */
+.inside { padding: 40px 0 140px; }
+.inside-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 56px; margin-top: 56px; align-items: start; }
+.inside-head { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: end; }
+.inside-head h2 { margin-top: 20px; }
+.inside-head p { color: var(--muted); font-size: 17px; max-width: 48ch; }
+.sec-label { display: flex; align-items: center; gap: 10px; font: 600 12px/1 var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.sec-label svg { width: 17px; height: 17px; color: var(--faint); }
+.table { background: linear-gradient(180deg, var(--plate-2), var(--plate)); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--line) inset; padding: 4px 22px; }
+.tr { display: grid; grid-template-columns: 150px 1fr; gap: 16px; padding: 14px 0; font-size: 15px; }
+.tr + .tr { border-top: 1px solid var(--line); }
+.tr dt { color: var(--faint); }
+.tr dd { margin: 0; color: var(--soft); }
+.code { background: #07080a; border-radius: var(--radius); box-shadow: 0 0 0 1px var(--line) inset; overflow: hidden; }
+.code-top { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--line); font: 400 12.5px var(--mono); color: var(--faint); }
+.code pre { margin: 0; padding: 20px 18px 22px; font: 400 14px/1.9 var(--mono); color: var(--soft); overflow-x: auto; }
+.code pre .p { color: var(--accent); user-select: none; margin-right: 10px; }
+.code-note { margin-top: 18px; font-size: 14px; color: var(--faint); line-height: 1.65; }
+.code-note a { color: var(--soft); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.code-note a:hover { text-decoration-color: var(--accent); }
+
+/* ---------- Changelog ---------- */
+.changelog { padding: 0 0 140px; }
+.cl-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; }
+.cl-head h2 { margin-top: 20px; }
+.link-arrow { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; color: var(--soft); }
+.link-arrow svg { width: 16px; height: 16px; transition: transform .25s var(--ease); }
+.link-arrow:hover { color: var(--ink); }
+.link-arrow:hover svg { transform: translateX(3px); }
+.releases { margin-top: 48px; border-top: 1px solid var(--line); }
+.rel { display: grid; grid-template-columns: 180px 1fr 1.4fr; gap: 32px; padding: 30px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.rel-v { font: 500 34px/1 var(--display); color: var(--ink); letter-spacing: -.02em; display: flex; align-items: center; gap: 12px; }
+.rel-v .latest { font: 600 10.5px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); background: var(--accent-12); padding: 5px 8px; border-radius: 6px; }
+.rel h4 { margin: 0; font: 500 18px/1.35 var(--body); color: var(--ink); }
+.rel p { color: var(--faint); font-size: 15px; }
+
+/* ---------- Download ---------- */
+.download { padding: 140px 0 120px; overflow: hidden; isolation: isolate; }
+.download::before { content: ""; position: absolute; left: 50%; bottom: -380px; width: 1100px; height: 700px; transform: translateX(-50%); z-index: -1;
+  background: radial-gradient(closest-side, var(--accent-20), transparent); filter: blur(10px); }
+.dl-rings { position: absolute; left: 50%; top: 60px; width: 900px; height: 900px; transform: translateX(-50%); z-index: -1; opacity: .5;
+  -webkit-mask-image: radial-gradient(closest-side, #000 30%, transparent); mask-image: radial-gradient(closest-side, #000 30%, transparent); }
+.dl-head { text-align: center; display: flex; flex-direction: column; align-items: center; }
+.dl-dial { width: 96px; height: 96px; margin-bottom: 30px; }
+.dl-head h2 { font-size: clamp(44px, 6.4vw, 84px); letter-spacing: -.035em; }
+.dl-head p { margin-top: 20px; font-size: 18px; color: var(--muted); max-width: 52ch; }
+.dl-options { margin: 56px auto 0; max-width: 920px; display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+.dl-card { position: relative; padding: 30px; border-radius: 18px; background: linear-gradient(180deg, var(--plate-2), var(--plate)); box-shadow: 0 0 0 1px var(--line) inset; display: flex; flex-direction: column; }
+.dl-card.main { box-shadow: 0 0 0 1px var(--accent-35) inset, 0 30px 80px -40px var(--accent-35); }
+.dl-card .k { display: flex; align-items: center; justify-content: space-between; }
+.dl-card .k span { font: 600 12px/1 var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.dl-card .k em { font: 600 10.5px/1 var(--display); font-style: normal; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); padding: 5px 8px; border-radius: 6px; }
+.dl-card h3 { margin-top: 18px; font-size: 28px; }
+.dl-file { margin-top: 6px; font: 400 13px var(--mono); color: var(--faint); }
+.dl-card ul { list-style: none; padding: 0; margin: 22px 0 28px; display: grid; gap: 10px; font-size: 15px; color: var(--muted); }
+.dl-card li { display: flex; gap: 10px; align-items: flex-start; }
+.dl-card li svg { width: 17px; height: 17px; margin-top: 3px; color: var(--accent); flex: none; }
+.dl-card .btn { margin-top: auto; justify-content: center; }
+.dl-req { margin-top: 28px; text-align: center; font: 400 13px var(--mono); color: var(--faint); }
+.smartscreen { margin: 40px auto 0; max-width: 920px; display: grid; grid-template-columns: auto 1fr; gap: 20px 24px; align-items: center; padding: 22px 26px; border-radius: 14px; background: rgba(255,255,255,.025); box-shadow: 0 0 0 1px var(--line) inset; }
+.smartscreen .ico { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-12); color: var(--accent); }
+.smartscreen .ico svg { width: 20px; height: 20px; }
+.smartscreen p { font-size: 14.5px; color: var(--muted); }
+.smartscreen p b { color: var(--soft); font-weight: 500; }
+.steps { display: inline-flex; align-items: center; gap: 8px; margin-left: 4px; white-space: nowrap; }
+.steps span { padding: 3px 9px; border-radius: 6px; background: var(--raised); color: var(--ink); font-size: 13px; }
+.steps svg { width: 13px; height: 13px; color: var(--faint); }
+
+/* ---------- Footer ---------- */
+footer { border-top: 1px solid var(--line); padding: 44px 0 56px; }
+footer .wrap { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+footer .brand { font-size: 18px; }
+footer .brand svg { width: 24px; height: 24px; }
+.foot-links { display: flex; gap: 6px 22px; flex-wrap: wrap; margin-left: auto; font-size: 14px; color: var(--faint); }
+.foot-links a:hover { color: var(--ink); }
+.foot-legal { width: 100%; font-size: 13px; color: #5d626b; margin-top: 8px; line-height: 1.7; }
+.foot-legal a { color: var(--faint); }
+.foot-legal a:hover { color: var(--soft); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1080px) {
+  .features-grid { grid-template-columns: 1fr; }
+  .rail { display: none; }
+  .ch-head { grid-template-columns: 1fr; }
+  .figures { grid-template-columns: repeat(2, 1fr); }
+  .figure:nth-child(3)::before { display: none; }
+  .figure:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .specs-row { grid-template-columns: 1fr; }
+  .rel { grid-template-columns: 140px 1fr; }
+  .rel p { grid-column: 2; }
+}
+@media (max-width: 860px) {
+  .nav-links { display: none; }
+  .nav-right { margin-left: auto; }
+  .why-head, .inside-head, .privacy-grid, .inside-grid, .dl-options { grid-template-columns: 1fr; }
+  .replace { align-items: flex-start; } .replace-row { justify-content: flex-start; }
+  .points, .points.two { grid-template-columns: 1fr; }
+  .features-intro, .cl-head { flex-direction: column; align-items: flex-start; }
+  .privacy-grid { gap: 48px; }
+  .ad-row { flex-direction: column; align-items: flex-start; }
+  .smartscreen { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .hero { padding-top: 118px; }
+  .figures { grid-template-columns: 1fr; }
+  .figure::before { display: none; }
+  .figure + .figure { border-top: 1px solid var(--line); }
+  .cta-row { flex-direction: column; width: 100%; }
+  .cta-row .btn { justify-content: center; }
+  .rel { grid-template-columns: 1fr; gap: 10px; }
+  .rel p { grid-column: auto; }
+  .tr { grid-template-columns: 1fr; gap: 2px; }
+  .clip pre { font-size: 11.5px; }
+  .steps { white-space: normal; flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .load { animation: none; }
+  .shot.rgb .halo, .netlog-top .live i { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- One dial definition, reused everywhere. Nine segments; JS lights them. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="dial-paths">
+      <path d="M15.03 52.97A24 24 0 0 1 9.77 45.03"/><path d="M8.72 41.85A24 24 0 0 1 8.28 32.34"/><path d="M9.02 29.07A24 24 0 0 1 13.53 20.68"/>
+      <path d="M15.84 18.26A24 24 0 0 1 24.01 13.37"/><path d="M27.24 12.48A24 24 0 0 1 36.76 12.48"/><path d="M39.99 13.37A24 24 0 0 1 48.16 18.26"/>
+      <path d="M50.47 20.68A24 24 0 0 1 54.98 29.07"/><path d="M55.72 32.34A24 24 0 0 1 55.28 41.85"/><path d="M54.23 45.03A24 24 0 0 1 48.97 52.97"/>
+    </g>
+  </defs>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Gauge, back to top"><svg class="mark" data-lit="6" viewBox="0 0 64 64" aria-hidden="true"></svg>Gauge</a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#lighting">Lighting</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#changelog">What's new</a>
+    </nav>
+    <div class="nav-right">
+      <a class="icon-link" href="https://github.com/Manny912-dev/Gauge" aria-label="Gauge on GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8 0 3.2.9.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1 .9 2.2v3.3c0 .3.1.7.8.6A12 12 0 0 0 12 .3"/></svg>
+      </a>
+      <a class="btn btn-primary btn-sm" href="#download">Download</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="hero-chart" aria-hidden="true"><canvas id="chart"></canvas></div>
+  <div class="wrap hero-copy">
+    <svg class="mark hero-dial load" id="heroDial" data-lit="0" viewBox="0 0 64 64" aria-hidden="true"></svg>
+    <a class="pill load" style="animation-delay:.05s" href="#changelog"><b>New</b><span>0.7.2 adds Keychron Q1 HE lighting</span>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+    <h1 class="load" style="animation-delay:.1s"><span class="line">Watch every reading.</span><span class="line">Set every light.</span></h1>
+    <p class="lead load" style="animation-delay:.18s">Gauge is a free system monitor and RGB lighting controller for Windows. <strong>No account, no telemetry, no vendor apps</strong>, and about 40&nbsp;MB of memory.</p>
+    <div class="cta-row load" style="animation-delay:.26s">
+      <a class="btn btn-primary" href="https://github.com/Manny912-dev/Gauge/releases/latest/download/Gauge-win-Setup.exe" data-dl>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.1 10.4 4v7.2H3zm8.4-1.3L21 2.5v8.7h-9.6zM3 12.8h7.4V20L3 18.9zm8.4 0H21v8.7l-9.6-1.3z"/></svg>
+        Download for Windows</a>
+      <a class="btn btn-ghost" href="https://github.com/Manny912-dev/Gauge">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8 0 3.2.9.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1 .9 2.2v3.3c0 .3.1.7.8.6A12 12 0 0 0 12 .3"/></svg>
+        View the source</a>
+    </div>
+    <p class="meta load" style="animation-delay:.32s"><span data-version>Version 0.7.2</span><span>Windows 10 &amp; 11, 64-bit</span><span>Free, MIT licensed</span></p>
+  </div>
+  <figure class="hero-shot load" style="animation-delay:.4s">
+    <div class="hero-crop">
+      <img src="hero.gif" width="1200" height="820" fetchpriority="high"
+        alt="Gauge running: the Monitor page with live CPU and GPU history, then the Lighting page setting a Lenovo 4-zone keyboard to cyan and the Wave effect, with the keyboard's light glowing around the window.">
+    </div>
+  </figure>
+</section>
+
+<!-- ================= WHY ================= -->
+<section class="why" id="why">
+  <div class="wrap">
+    <div class="why-head reveal">
+      <div>
+        <p class="eyebrow">Why Gauge</p>
+        <h2>Everything you'd install three apps for. <span class="dim">None of what comes with them.</span></h2>
+      </div>
+      <div class="replace">
+        <div class="replace-row"><span class="chip-x">Vendor RGB suite</span><span class="chip-x">Hardware monitor</span><span class="chip-x">System info tool</span></div>
+        <span class="replace-to">all in one app
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="16" height="16"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+          <svg class="mark" data-lit="6" viewBox="0 0 64 64" aria-hidden="true"></svg><b style="color:var(--ink);font-weight:600">Gauge</b></span>
+      </div>
+    </div>
+
+    <div class="figures reveal" data-d="1">
+      <div class="figure">
+        <div class="fig-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 7V4M11 7V4M15 7V4M19 17v3M5 17v3M9 11v2M13 11v2M17 11v2"/></svg>Memory</div>
+        <div class="fig-value"><span class="tilde">~</span><span data-count="40">40</span><small>MB</small></div>
+        <div class="fig-meter"><i style="--w:8%"></i></div>
+        <p class="fig-note">A hand-drawn interface. No web view, no Electron, nothing running in the background.</p>
+      </div>
+      <div class="figure">
+        <div class="fig-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>Data collected</div>
+        <div class="fig-value"><span>0</span><small>bytes</small></div>
+        <div class="fig-meter"><i style="--w:0%"></i></div>
+        <p class="fig-note">No account, no analytics. The one connection it makes is an update check, and you can turn it off.</p>
+      </div>
+      <div class="figure">
+        <div class="fig-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8.5" r="4.5"/><circle cx="8.5" cy="14.5" r="4.5"/><circle cx="15.5" cy="14.5" r="4.5"/></svg>RGB devices</div>
+        <div class="fig-value"><span>100s</span></div>
+        <div class="fig-meter"><i style="--w:86%"></i></div>
+        <p class="fig-note">Native drivers plus a built-in OpenRGB engine. Plug it in and Gauge finds it.</p>
+      </div>
+      <div class="figure">
+        <div class="fig-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg>Price</div>
+        <div class="fig-value"><span>Free</span></div>
+        <div class="fig-meter"><i style="--w:100%"></i></div>
+        <p class="fig-note">Open source under MIT. No pro tier, no upsell, no trial clock.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FEATURES ================= -->
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="features-intro reveal">
+      <div>
+        <p class="eyebrow">The app</p>
+        <h2>Four pages.<br><span class="dim">Everything in reach.</span></h2>
+      </div>
+      <p>Monitor, Specs, Lighting and Settings, each one a click on the rail or <kbd>Ctrl</kbd> + <kbd>1</kbd>–<kbd>4</kbd> away.</p>
+    </div>
+
+    <div class="features-grid">
+      <nav class="rail" aria-label="App pages">
+        <span class="rail-bar" id="railBar"></span>
+        <a href="#monitor" data-target="monitor" class="active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 12h4l2.5-6 4 12L16 12h5"/></svg>Monitor</a>
+        <a href="#specs" data-target="specs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx=".5"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>Specs</a>
+        <a href="#lighting" data-target="lighting">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8.5" r="4.5"/><circle cx="8.5" cy="14.5" r="4.5"/><circle cx="15.5" cy="14.5" r="4.5"/></svg>Lighting</a>
+        <span class="rail-sep"></span>
+        <a href="#settings" data-target="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg>Settings</a>
+      </nav>
+
+      <div class="chapters">
+
+        <!-- Monitor -->
+        <article class="chapter" id="monitor">
+          <header class="ch-head reveal">
+            <div class="ch-meta"><span class="ch-num">01</span><p class="eyebrow">Monitor</p><span class="ch-keys"><kbd>Ctrl</kbd><kbd>1</kbd></span></div>
+            <h3>Live readings, ninety seconds deep.</h3>
+            <p>CPU and GPU load drawn edge to edge, with temperature, clock, power and fans beside them. Memory, network, storage and every running app, on one page.</p>
+          </header>
+          <figure class="shot reveal" data-d="1"><span class="halo"></span>
+            <img src="screenshots/monitor.gif" width="1080" height="740" loading="lazy" decoding="async"
+              alt="Gauge's Monitor page running live: CPU and GPU load with 90 seconds of history scrolling past, memory, network, storage and the process list updating.">
+          </figure>
+          <ul class="points reveal">
+            <li><b>CPU and GPU, in full</b><span>Load with 90 seconds of history, plus temperature, clock, power, fan and video memory where the hardware reports them.</span></li>
+            <li><b>Heat you can see <span class="temps" aria-hidden="true"><i style="background:#c9cdd3"></i><i style="background:#ffa53c"></i><i style="background:#ff5a4d"></i></span></b><span>Temperatures turn amber, then red, as they climb.</span></li>
+            <li><b>Memory, network, storage</b><span>At a glance, with download and upload charted live.</span></li>
+            <li><b>Apps, not just processes</b><span>Grouped by app and sortable by CPU, GPU or memory. <em>Run as administrator</em> for per-app download and upload speeds.</span></li>
+            <li><b>More than one GPU</b><span>Switch between graphics cards on machines that have several.</span></li>
+            <li><b>Always lightweight</b><span>All of it in about 40 MB, so the monitor never becomes the thing you're monitoring.</span></li>
+          </ul>
+        </article>
+
+        <!-- Specs -->
+        <article class="chapter" id="specs">
+          <header class="ch-head reveal">
+            <div class="ch-meta"><span class="ch-num">02</span><p class="eyebrow">Specs</p><span class="ch-keys"><kbd>Ctrl</kbd><kbd>2</kbd></span></div>
+            <h3>Your whole machine, one copy away.</h3>
+            <p>A complete hardware inventory, detected automatically. No digging through Device Manager, no third tool to install.</p>
+          </header>
+          <figure class="shot reveal" data-d="1"><span class="halo"></span>
+            <img src="screenshots/specs.gif" width="1080" height="740" loading="lazy" decoding="async"
+              alt="Gauge's Specs page: scrolling through the device summary, key figures and grouped hardware details, then Copy specs.">
+          </figure>
+          <div class="specs-row">
+            <ul class="points reveal">
+              <li><b>Everything, grouped</b><span>System, processor, graphics, memory modules, storage, display and network, with the key figures in one row at the top.</span></li>
+              <li><b>Copy specs</b><span>Puts it all on the clipboard as plain text, ready for a forum post, a support ticket or a "will this run it?" thread.</span></li>
+            </ul>
+            <div class="clip reveal" data-d="1">
+              <div class="clip-top"><span>Clipboard</span><button class="clip-btn" id="copyDemo" type="button">Copy specs</button></div>
+<pre id="clipText"><b>System</b>
+  Device: LENOVO LOQ 15APH8 (82XT)
+  Operating system: Windows 10 Home 22H2
+
+<b>Processor</b>
+  Model: AMD Ryzen 7 7840HS
+  Cores: 8 cores, 16 threads
+
+<b>Graphics</b>
+  Adapter 2: NVIDIA GeForce RTX 4060
+  Memory: 8 GB</pre>
+            </div>
+          </div>
+        </article>
+
+        <!-- Lighting -->
+        <article class="chapter" id="lighting">
+          <header class="ch-head reveal">
+            <div class="ch-meta"><span class="ch-num">03</span><p class="eyebrow">Lighting</p><span class="ch-keys"><kbd>Ctrl</kbd><kbd>3</kbd></span></div>
+            <h3>Your RGB, without the maker's software.</h3>
+            <p>One device list for everything that lights up, with a live preview that glows in the colours you pick. Delete the vendor suites; Gauge talks to the hardware itself.</p>
+          </header>
+          <div class="devices reveal" data-d="1">
+            <span class="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Keyboards</span>
+            <span class="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v3"/></svg>Mice</span>
+            <span class="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>Headsets</span>
+            <span class="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="7" width="19" height="10" rx="1.5"/><circle cx="9" cy="12" r="2.5"/><circle cx="16" cy="12" r="2.5"/><path d="M5 17v2"/></svg>Graphics cards</span>
+            <span class="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 12c0-3 1-5 3.5-5.5M12 12c2.6 1.5 4 3.5 3 6M12 12c-2.6 1.5-5 1.3-6.4-.9"/></svg>Coolers &amp; fans</span>
+            <span class="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h.01M12 9h.01M16 9h.01M8 15h8"/></svg>LED controllers</span>
+            <span class="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M7 8h4v4H7zM15 8h2M15 12h2M7 16h10"/></svg>Motherboards &amp; RAM</span>
+          </div>
+          <p class="native reveal" data-d="1">Native drivers for <b>Lenovo Legion, LOQ and IdeaPad Gaming</b> 4-zone keyboards and the <b>Keychron Q1 HE</b>. Hundreds more through the built-in <b>OpenRGB</b> engine.</p>
+          <figure class="shot rgb reveal" data-d="2"><span class="halo"></span>
+            <img src="screenshots/lighting.gif" width="1080" height="740" loading="lazy" decoding="async"
+              alt="Gauge's Lighting page: the Lenovo 4-zone keyboard set to magenta, then cyan, then the Breathing and Wave effects, then back to the accent colour, with the zone preview following each change.">
+          </figure>
+          <ul class="points reveal">
+            <li><b>Found automatically</b><span>Devices appear on their own, through native drivers or the OpenRGB engine. No setup, no profiles to import.</span></li>
+            <li><b>Zones, effects, speed</b><span>Per-zone colours and each device's own effects, brightness and speed, with a live preview that glows as you go.</span></li>
+            <li><b>Motherboard and RAM</b><span>One administrator approval installs the PawnIO driver, and there's a clean way to turn it off again.</span></li>
+            <li><b>Set it once</b><span>"Apply when Gauge starts" puts your lighting back at every sign-in.</span></li>
+            <li><b>Your device, next</b><span>Devices without a driver yet are listed, with a report you can copy and send so support can be added.</span></li>
+            <li><b>Keychron Q1 HE <span class="tag" style="margin-left:4px">New</span></b><span>All 22 effects, colour, brightness and speed through VIA, saved on the keyboard itself.</span></li>
+          </ul>
+        </article>
+
+        <!-- Settings -->
+        <article class="chapter" id="settings">
+          <header class="ch-head reveal">
+            <div class="ch-meta"><span class="ch-num">04</span><p class="eyebrow">Settings</p><span class="ch-keys"><kbd>Ctrl</kbd><kbd>4</kbd></span></div>
+            <h3>Starts quietly. Stays out of the way.</h3>
+            <p>Gauge can open straight to the tray at sign-in, keep running when you close it, and update itself without asking for your attention.</p>
+          </header>
+          <figure class="shot reveal" data-d="1"><span class="halo"></span>
+            <img src="screenshots/settings.gif" width="1080" height="740" loading="lazy" decoding="async"
+              alt="Gauge's Settings page: switching between accent colours, which recolour the charts, highlights and switches, and turning the start-up and tray options on and off.">
+          </figure>
+          <div class="accent-demo reveal" role="group" aria-label="Try the accent colours">
+            <div class="ad-row">
+              <div class="t"><b>Accent colour</b><span>Try it here: this page uses the same eight</span></div>
+              <div class="swatches" id="swatches"></div>
+            </div>
+            <div class="ad-row">
+              <div class="t"><b>Custom colour</b><code id="hex">#FFA53C</code></div>
+              <input class="hue" id="hue" type="range" min="0" max="360" value="32" aria-label="Custom accent hue">
+            </div>
+            <p class="ad-note" id="adNote" hidden>Looks good. <button type="button" id="resetAccent">Back to amber</button></p>
+          </div>
+          <ul class="points reveal">
+            <li><b>Start with Windows</b><span>Opens in the notification area when you sign in, without the window, so your lighting is applied every time.</span></li>
+            <li><b>Keep running in the tray</b><span>The close button hides Gauge instead of quitting. Click the tray icon to bring it back.</span></li>
+            <li><b>Quiet updates</b><span>New versions download in the background and install the next time Gauge starts. You can switch it off.</span></li>
+            <li><b>Eight accents, or any hue</b><span>Charts, highlights and switches follow the colour you choose.</span></li>
+            <li><b>Nothing extra running</b><span>A custom-drawn interface: no web view, no background services.</span></li>
+            <li><b>Keyboard friendly</b><span><kbd>Ctrl</kbd> + <kbd>1</kbd>–<kbd>4</kbd> moves between pages.</span></li>
+          </ul>
+        </article>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PRIVACY ================= -->
+<section class="privacy" id="privacy">
+  <div class="wrap privacy-grid">
+    <div class="reveal">
+      <p class="eyebrow">Privacy</p>
+      <h2>Nothing leaves<br>your PC.</h2>
+      <p class="body">Gauge has no account and sends nothing about you or your machine anywhere. The only time it goes online is to ask GitHub whether there's a newer version of itself, and that's a switch in Settings.</p>
+      <div class="nos">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>No account</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>No telemetry</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>No ads</span>
+      </div>
+    </div>
+    <div class="netlog reveal" data-d="1" aria-label="Everything Gauge connects to and stores">
+      <div class="netlog-top">Gauge · network<span class="live"><i></i>watching</span></div>
+      <div class="nl-sec">
+        <div class="nl-h">Outbound connections</div>
+        <div class="nl-row"><span>github.com <span class="why-t">· update check</span></span><span class="tag">optional</span></div>
+        <div class="nl-row blocked"><span><s>analytics</s></span><span class="tag off">never</span></div>
+        <div class="nl-row blocked"><span><s>crash reporting</s></span><span class="tag off">never</span></div>
+        <div class="nl-row blocked"><span><s>account sign-in</s></span><span class="tag off">never</span></div>
+      </div>
+      <div class="nl-sec">
+        <div class="nl-h">Stored on your PC</div>
+        <div class="nl-row"><span>%AppData%\Gauge\</span><span class="why-t">settings, diagnostic log</span></div>
+        <div class="nl-end">— that's everything —</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= INSIDE ================= -->
+<section class="inside" id="inside">
+  <div class="wrap">
+    <div class="inside-head reveal">
+      <div>
+        <p class="eyebrow">Under the hood</p>
+        <h2>Drawn by hand,<br><span class="dim">pixel by pixel.</span></h2>
+      </div>
+      <p>Nothing on screen is a standard control. Every page is drawn directly with GDI+, which is why Gauge opens instantly and sits at around 40 MB while it works.</p>
+    </div>
+    <div class="inside-grid">
+      <div class="reveal">
+        <div class="sec-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx=".5"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>Built with</div>
+        <dl class="table">
+          <div class="tr"><dt>Interface</dt><dd>Custom GDI+ renderer, no web view</dd></div>
+          <div class="tr"><dt>Runtime</dt><dd>C# on .NET 10, Windows Forms</dd></div>
+          <div class="tr"><dt>Sensors</dt><dd>LibreHardwareMonitor, NVML, performance counters</dd></div>
+          <div class="tr"><dt>Lighting</dt><dd>Native drivers and the OpenRGB 1.0 engine</dd></div>
+          <div class="tr"><dt>Updates</dt><dd>Velopack, in the background</dd></div>
+          <div class="tr"><dt>Licence</dt><dd>MIT</dd></div>
+        </dl>
+      </div>
+      <div class="reveal" data-d="1">
+        <div class="sec-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg>Build it yourself</div>
+        <div class="code">
+          <div class="code-top"><span>PowerShell</span><button class="clip-btn" type="button" data-copy="git clone https://github.com/Manny912-dev/Gauge.git&#10;cd Gauge&#10;dotnet build -c Release">Copy</button></div>
+<pre><span class="p">&gt;</span>git clone https://github.com/Manny912-dev/Gauge.git
+<span class="p">&gt;</span>cd Gauge
+<span class="p">&gt;</span>dotnet build -c Release</pre>
+        </div>
+        <p class="code-note">You need Windows and the <a href="https://dotnet.microsoft.com/download">.NET 10 SDK</a>. Read the code, open an issue, or send a pull request on <a href="https://github.com/Manny912-dev/Gauge">GitHub</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CHANGELOG ================= -->
+<section class="changelog" id="changelog">
+  <div class="wrap">
+    <div class="cl-head reveal">
+      <div>
+        <p class="eyebrow">What's new</p>
+        <h2>On the way to 1.0.</h2>
+      </div>
+      <a class="link-arrow" href="https://github.com/Manny912-dev/Gauge/blob/main/CHANGELOG.md">Full changelog
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+    </div>
+    <div class="releases">
+      <div class="rel reveal"><div class="rel-v">0.7.2<span class="latest">Latest</span></div><h4>Keychron Q1 HE lighting</h4><p>Drives the Q1 HE's RGB through VIA: all 22 effects, colour, brightness and speed. Richer device reports for QMK keyboards Gauge can't drive yet.</p></div>
+      <div class="rel reveal"><div class="rel-v">0.7.1</div><h4>A new mark</h4><p>The segmented dial, nine segments with six lit, across the app, its icon, the tray and a redesigned installer panel.</p></div>
+      <div class="rel reveal"><div class="rel-v">0.7.0</div><h4>The redesign</h4><p>A navigation rail, a bigger Monitor page, a rebuilt Lighting page with a glowing live preview, grouped Specs and Settings as its own page.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DOWNLOAD ================= -->
+<section class="download" id="download">
+  <svg class="dl-rings" viewBox="0 0 900 900" fill="none" aria-hidden="true">
+    <g stroke="rgba(255,255,255,.08)"><circle cx="450" cy="450" r="160"/><circle cx="450" cy="450" r="250"/><circle cx="450" cy="450" r="340" stroke-dasharray="2 8"/><circle cx="450" cy="450" r="430"/></g>
+  </svg>
+  <div class="wrap">
+    <div class="dl-head reveal">
+      <svg class="mark dl-dial" id="dlDial" data-lit="6" viewBox="0 0 64 64" aria-hidden="true"></svg>
+      <h2>Get Gauge.</h2>
+      <p>Free, for good. It installs in seconds for your account only, so you don't need administrator rights.</p>
+    </div>
+    <div class="dl-options">
+      <div class="dl-card main reveal" data-d="1">
+        <div class="k"><span>Installer</span><em>Recommended</em></div>
+        <h3>Gauge for Windows</h3>
+        <div class="dl-file"><span>Gauge-win-Setup.exe</span><span data-size="Gauge-win-Setup.exe"></span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>Keeps itself up to date</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>Start menu entry, start with Windows</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>No administrator rights needed</li>
+        </ul>
+        <a class="btn btn-primary" href="https://github.com/Manny912-dev/Gauge/releases/latest/download/Gauge-win-Setup.exe" data-dl>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          Download installer</a>
+      </div>
+      <div class="dl-card reveal" data-d="2">
+        <div class="k"><span>Portable</span></div>
+        <h3>Zip archive</h3>
+        <div class="dl-file"><span>Gauge-win-Portable.zip</span><span data-size="Gauge-win-Portable.zip"></span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>Unzip and run from any folder</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>Nothing installed</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>Updates by downloading again</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://github.com/Manny912-dev/Gauge/releases/latest/download/Gauge-win-Portable.zip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          Download zip</a>
+      </div>
+    </div>
+    <p class="dl-req reveal"><span data-version>Version 0.7.2</span> · 64-bit Windows 10 or 11 · <a href="https://github.com/Manny912-dev/Gauge/releases" style="text-decoration:underline;text-underline-offset:3px">All releases</a></p>
+    <div class="smartscreen reveal">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="M12 8v5M12 16h.01"/></svg></span>
+      <p><b>"Windows protected your PC"?</b> Gauge isn't code-signed yet, so SmartScreen may stop it the first time. Click
+        <span class="steps"><span>More info</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8h10M9 4l4 4-4 4"/></svg><span>Run anyway</span></span>
+        and it won't ask again. If you turned on motherboard and RAM lighting, turn it off in Gauge before uninstalling.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top"><svg class="mark" data-lit="6" viewBox="0 0 64 64" aria-hidden="true"></svg>Gauge</a>
+    <nav class="foot-links" aria-label="Footer">
+      <a href="#download">Download</a>
+      <a href="https://github.com/Manny912-dev/Gauge">GitHub</a>
+      <a href="https://github.com/Manny912-dev/Gauge/releases">Releases</a>
+      <a href="https://github.com/Manny912-dev/Gauge/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/Manny912-dev/Gauge/issues">Report a problem</a>
+    </nav>
+    <p class="foot-legal">Gauge is free software under the <a href="https://github.com/Manny912-dev/Gauge/blob/main/LICENSE">MIT License</a>. It includes OpenRGB (GPL-2.0-or-later), run unmodified as a separate program, and reads sensors with LibreHardwareMonitor (MPL-2.0); see the <a href="https://github.com/Manny912-dev/Gauge/blob/main/package/THIRD-PARTY-NOTICES.txt">third-party notices</a>. Product names belong to their owners.</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+
+  /* ---------- Dial marks ---------- */
+  const paths = $('#dial-paths').innerHTML;
+  $$('svg.mark').forEach(svg => { svg.innerHTML = paths; setLit(svg, +svg.dataset.lit); });
+  function setLit(svg, n) { $$('path', svg).forEach((p, i) => p.classList.toggle('on', i < n)); }
+
+  // Hero dial: sweeps up to six on load, then reads like a live meter, settling between five and seven.
+  const hero = $('#heroDial');
+  if (reduce) setLit(hero, 6);
+  else {
+    let n = 0;
+    const up = setInterval(() => { setLit(hero, ++n); if (n >= 6) { clearInterval(up); breathe(); } }, 90);
+    function breathe() {
+      setTimeout(function tick() { setLit(hero, 5 + Math.floor(Math.random() * 3)); setTimeout(tick, 1400 + Math.random() * 1600); }, 1800);
+    }
+  }
+
+  // Download dial: fills to nine while a download button is hovered.
+  const dl = $('#dlDial');
+  let fill;
+  $$('#download .btn').forEach(b => {
+    b.addEventListener('mouseenter', () => { clearInterval(fill); let n = 6; fill = setInterval(() => { setLit(dl, ++n); if (n >= 9) clearInterval(fill); }, 70); });
+    b.addEventListener('mouseleave', () => { clearInterval(fill); setLit(dl, 6); });
+  });
+
+  /* ---------- Nav ---------- */
+  const nav = $('#nav');
+  const onScroll = () => nav.classList.toggle('scrolled', scrollY > 12);
+  addEventListener('scroll', onScroll, { passive: true }); onScroll();
+
+  /* ---------- Reveal ---------- */
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }),
+    { rootMargin: '0px 0px -10% 0px', threshold: .08 });
+  $$('.reveal').forEach(el => io.observe(el));
+
+  // Count-up for the memory figure.
+  const count = $('[data-count]');
+  if (count && !reduce) {
+    const target = +count.dataset.count; count.textContent = '0';
+    new IntersectionObserver((es, o) => es.forEach(e => {
+      if (!e.isIntersecting) return; o.disconnect();
+      const t0 = performance.now();
+      requestAnimationFrame(function f(t) { const k = Math.min(1, (t - t0) / 1400); count.textContent = Math.round(target * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(f); });
+    }), { threshold: .6 }).observe(count);
+  }
+
+  /* ---------- Rail ---------- */
+  const rail = $('.rail'), bar = $('#railBar'), links = $$('.rail a');
+  function placeBar(a) { bar.style.transform = `translateY(${a.offsetTop + (a.offsetHeight - 30) / 2}px)`; }
+  function activate(id) { links.forEach(a => { const on = a.dataset.target === id; a.classList.toggle('active', on); if (on) placeBar(a); }); }
+  const chIO = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && activate(e.target.id)), { rootMargin: '-45% 0px -50% 0px' });
+  $$('.chapter').forEach(c => chIO.observe(c));
+  requestAnimationFrame(() => placeBar(links[0]));
+  addEventListener('resize', () => placeBar($('.rail a.active') || links[0]));
+
+  /* ---------- Hero chart: a scrolling history line, like the Monitor page ---------- */
+  const cv = $('#chart'), cx = cv.getContext('2d');
+  const N = 120; let pts = [], v = .45;
+  const next = () => { v += (Math.random() - .5) * .09 + (.42 - v) * .05; if (Math.random() < .02) v += .1 + Math.random() * .1; v = Math.max(.1, Math.min(.85, v)); return v; };
+  for (let i = 0; i < N; i++) pts.push(next());
+  let W, H, accent;
+  const readAccent = () => accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ffa53c';
+  readAccent();
+  function size() { const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0); }
+  size(); addEventListener('resize', size);
+  const step = 650; let last = performance.now(), visible = true;
+  new IntersectionObserver(es => visible = es[0].isIntersecting).observe(cv);
+  function draw(t) {
+    let f = (t - last) / step;
+    if (f >= 1 && !reduce) { pts.shift(); pts.push(next()); last = t; f = 0; }
+    if (reduce) f = 0;
+    if (visible || reduce) {
+      cx.clearRect(0, 0, W, H);
+      // Faint dotted guides, as on the banner art.
+      cx.fillStyle = 'rgba(255,255,255,.07)';
+      for (const gy of [.7, .85]) for (let x = 0; x < W; x += 6) cx.fillRect(x, H * gy, 1.5, 1);
+      const dx = W / (N - 3), y = p => H * (.97 - p * .3);
+      cx.beginPath();
+      for (let i = 0; i < N; i++) {
+        const x = (i - f) * dx, yy = y(pts[i]);
+        if (i === 0) cx.moveTo(x, yy);
+        else { const px = (i - 1 - f) * dx, py = y(pts[i - 1]), mx = (px + x) / 2; cx.bezierCurveTo(mx, py, mx, yy, x, yy); }
+      }
+      const g = cx.createLinearGradient(0, H * .62, 0, H);
+      g.addColorStop(0, hexA(accent, .09)); g.addColorStop(1, hexA(accent, 0));
+      cx.strokeStyle = hexA(accent, .42); cx.lineWidth = 1.6; cx.stroke();
+      cx.lineTo((N - 1 - f) * dx, H); cx.lineTo(-f * dx, H); cx.closePath(); cx.fillStyle = g; cx.fill();
+      // Live end point at the right edge of the visible area.
+      const ex = W * .82, ei = ex / dx + f, i0 = Math.floor(ei), k = ei - i0;
+      const ey = y(pts[i0] * (1 - k) + pts[Math.min(N - 1, i0 + 1)] * k);
+      cx.fillStyle = hexA(accent, .18); cx.beginPath(); cx.arc(ex, ey, 11, 0, 7); cx.fill();
+      cx.fillStyle = accent; cx.beginPath(); cx.arc(ex, ey, 3.5, 0, 7); cx.fill();
+    }
+    if (!reduce) requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+  function hexA(hex, a) { const n = parseInt(hex.replace('#', ''), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+
+  /* ---------- Accent demo: the app's eight presets and its hue slider ---------- */
+  const presets = ['#FFA53C', '#FF6B5E', '#FF5C93', '#A78BFA', '#5B9DFF', '#3CCFE0', '#4ADE9B', '#B8E04A'];
+  const sw = $('#swatches'), hue = $('#hue'), hexEl = $('#hex'), note = $('#adNote');
+  presets.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'sw'; b.type = 'button'; b.style.setProperty('--c', c); b.setAttribute('aria-label', `Accent ${c}`); b.setAttribute('aria-pressed', i === 0);
+    b.addEventListener('click', () => setAccent(c, b));
+    sw.appendChild(b);
+  });
+  hue.addEventListener('input', () => setAccent(hsv(+hue.value, .76, 1), null));
+  $('#resetAccent').addEventListener('click', () => setAccent(presets[0], sw.children[0]));
+  function setAccent(c, btn) {
+    document.documentElement.style.setProperty('--accent', c);
+    hexEl.textContent = c.toUpperCase();
+    [...sw.children].forEach(b => b.setAttribute('aria-pressed', b === btn));
+    if (btn) hue.value = Math.round(hueOf(c));
+    note.hidden = c.toUpperCase() === presets[0];
+    readAccent();
+  }
+  function hsv(h, s, v) {
+    const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+    return '#' + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+  }
+  function hueOf(hex) {
+    const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b); if (!d) return 0;
+    const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (h * 60 + 360) % 360;
+  }
+
+  /* ---------- Copy buttons ---------- */
+  function copied(btn, label) { btn.textContent = 'Copied'; btn.classList.add('done'); setTimeout(() => { btn.textContent = label; btn.classList.remove('done'); }, 1500); }
+  $$('[data-copy]').forEach(b => b.addEventListener('click', () => navigator.clipboard?.writeText(b.dataset.copy).then(() => copied(b, 'Copy'))));
+  const demo = $('#copyDemo');
+  demo.addEventListener('click', () => navigator.clipboard?.writeText($('#clipText').textContent).then(() => copied(demo, 'Copy specs')));
+
+  /* ---------- Latest release: version and file sizes, with the static text as fallback ---------- */
+  fetch('https://api.github.com/repos/Manny912-dev/Gauge/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(rel => {
+      const v = (rel.tag_name || '').replace(/^v/, '');
+      if (v) $$('[data-version]').forEach(el => el.textContent = `Version ${v}`);
+      (rel.assets || []).forEach(a => $$(`[data-size="${a.name}"]`).forEach(el => el.textContent = ` · ${(a.size / 1048576).toFixed(1)} MB`));
+    }).catch(() => {});
+})();
+</script>
+</body>
+</html>
