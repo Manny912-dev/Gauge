@@ -73,6 +73,14 @@ internal sealed unsafe class Telemetry : IDisposable
     public float CpuClockMax = 1, CpuFanMax = 2000;
     /// <summary>Where <see cref="CpuTemp"/> came from this tick: a hardware sensor's name, "ACPI thermal zone", or "" when nothing reported.</summary>
     public string CpuTempSource = "";
+    /// <summary>
+    /// True when the only CPU temperature is the motherboard's ACPI zone and it has not moved for <see cref="FrozenAfter"/>
+    /// samples. Many desktop boards report a fixed number there, so <see cref="CpuTemp"/> is then left empty rather than shown as live.
+    /// </summary>
+    public bool CpuTempFrozen;
+    const int FrozenAfter = 20;
+    /// <summary>True when the PawnIO driver is installed, so restarting as administrator gives the hardware library its CPU sensors.</summary>
+    public bool DriverInstalled; // settable so --snapshot can show the prompt on a PC without the driver
     public readonly Ring CpuHistory = new(HistoryLen), MemHistory = new(HistoryLen), DownHistory = new(HistoryLen), UpHistory = new(HistoryLen);
 
     public readonly List<GpuState> Gpus = new();
@@ -100,7 +108,8 @@ internal sealed unsafe class Telemetry : IDisposable
     ISensor? _sCpuPower;
     NetTrace? _netTrace;
     long _idle, _kernel, _user, _rx, _tx, _netTs;
-    int _tick, _cpuProbes;
+    int _tick, _cpuProbes, _acpiSame;
+    float _acpiLast = float.NaN;
     bool _nvml;
 
     public Telemetry()
@@ -111,6 +120,9 @@ internal sealed unsafe class Telemetry : IDisposable
         CpuName = ShortCpuName(key?.GetValue("ProcessorNameString") as string ?? "Processor");
         BaseMhz = key?.GetValue("~MHz") is int mhz ? mhz : 0;
         CpuClockMax = MathF.Max(1, BaseMhz);
+        // Where the hardware library itself looks for the driver
+        using (var pawnIo = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO"))
+            DriverInstalled = pawnIo != null;
     }
 
     public static string ShortCpuName(string raw)
@@ -370,6 +382,20 @@ internal sealed unsafe class Telemetry : IDisposable
             }
             if (kelvin > 273) { CpuTemp = (float)(kelvin - 273.15); source = "ACPI thermal zone"; }
         }
+        // A reading that never moves is not a reading: catch a board's fixed ACPI number.
+        if (source == "ACPI thermal zone")
+        {
+            if (CpuTemp == _acpiLast) _acpiSame++;
+            else { _acpiSame = 0; _acpiLast = CpuTemp; }
+        }
+        else { _acpiSame = 0; _acpiLast = float.NaN; }
+        bool frozen = _acpiSame >= FrozenAfter;
+        if (frozen != CpuTempFrozen)
+        {
+            Log.Write(frozen ? $"cpu temp: the ACPI reading has not changed for {FrozenAfter} s; treating it as stuck" : "cpu temp: the ACPI reading moved again");
+            CpuTempFrozen = frozen;
+        }
+        if (frozen) CpuTemp = float.NaN;
         if (source != CpuTempSource)
         {
             Log.Write($"cpu temp source: {(source == "" ? "none" : source)}{(float.IsNaN(CpuTemp) ? "" : $" ({CpuTemp:0.0} °C)")}");

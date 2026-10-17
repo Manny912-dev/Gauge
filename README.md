@@ -65,6 +65,8 @@ If you turned on motherboard and RAM lighting, turn it off in Gauge before unins
 
 ## What's new
 
+**0.8.3** — A CPU temperature that never changes is no longer shown as live; Gauge offers "Restart as admin" for a real reading instead.
+
 **0.8.2** — CPU temperature now uses whichever CPU sensor is actually reporting, instead of falling back to a motherboard reading that stays fixed on many desktops.
 
 **0.8.1** — Fixes CPU temperature and clock freezing a few seconds after launch when Gauge runs without administrator rights.

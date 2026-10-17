@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.3
+
+- **A stuck CPU temperature is no longer shown as live.** Without administrator rights, many desktops can only offer the motherboard's ACPI reading, which often never changes. When that reading stays exactly the same for 20 seconds, Gauge stops showing it and offers "Restart as admin" in its place, like the per-app network hint. If the PawnIO driver is not installed, where restarting would not help, it shows "–" instead. A reading that moves, as on most laptops, is shown as before.
+- **Fixed:** opening Gauge again while a copy runs as administrator could end in an error instead of bringing that window forward.
+
 ## 0.8.2
 
 - **CPU temperature tries every CPU sensor.** Gauge used to pick one temperature sensor at launch and, if that sensor gave no reading, fall back to the motherboard's thermal zone, which on many desktops reports a fixed number. It now takes the best sensor that is actually reporting each second (package, hottest core, core average, then each core), so the reading follows the CPU on more machines.

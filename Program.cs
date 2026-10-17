@@ -41,7 +41,15 @@ static class Program
 
         // One window per user. "--restart" is passed when relaunching as administrator,
         // so the new copy waits for the old one to finish closing.
-        using var mutex = new Mutex(false, @"Local\Gauge.SingleInstance");
+        Mutex mutex;
+        try { mutex = new Mutex(false, @"Local\Gauge.SingleInstance"); }
+        catch (UnauthorizedAccessException)
+        {
+            // Created by a copy running as administrator, which a normal launch may not open: it is running.
+            if (!background) ShowExisting();
+            return;
+        }
+        using var _ = mutex;
         if (!Acquire(mutex, args.Contains("--restart") ? 5000 : 0))
         {
             if (!background) ShowExisting(); // signing in again must not pop the window up

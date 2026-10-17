@@ -24,6 +24,13 @@ internal static class Snapshot
         int w = (int)(1060 * s), h = (int)(680 * s);
         using var r = new Renderer(t, s);
         Save(r, t, w, h, Path.Combine(dir, "monitor.png"));
+        // The CPU temperature stuck on a board's fixed number, as a desktop without administrator rights shows it
+        bool driver = t.DriverInstalled, elevated = t.Elevated;
+        lock (t.Sync) { t.Paused = true; t.CpuTemp = float.NaN; t.CpuTempFrozen = true; t.DriverInstalled = true; }
+        if (!elevated) Save(r, t, w, h, Path.Combine(dir, "monitor-temp-stuck.png"));
+        lock (t.Sync) t.DriverInstalled = false;
+        Save(r, t, w, h, Path.Combine(dir, "monitor-temp-stuck-nodriver.png"));
+        lock (t.Sync) { t.DriverInstalled = driver; t.CpuTempFrozen = false; t.Paused = false; }
         r.Tab = Renderer.PageSettings;
         r.StartWithWindows = true;
         r.SetAccent(Renderer.Presets[4]);

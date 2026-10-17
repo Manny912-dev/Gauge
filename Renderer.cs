@@ -31,7 +31,7 @@ internal sealed partial class Renderer : IDisposable
     static Color Rgb(int v) => Color.FromArgb(255, (v >> 16) & 255, (v >> 8) & 255, v & 255);
     static Color White(int alpha) => Color.FromArgb(alpha, 255, 255, 255);
 
-    readonly record struct Tile(string Label, string Value, string Unit, float Fraction = float.NaN, int Kind = 0); // kind 2: a temperature, coloured by how hot it is
+    readonly record struct Tile(string Label, string Value, string Unit, float Fraction = float.NaN, int Kind = 0, int Hit = 0); // kind 2: a temperature, coloured by how hot it is; Hit: Value is a link
 
     int _tab;
     /// <summary>The page shown. Changing it starts the new page at the top.</summary>
@@ -503,6 +503,8 @@ internal sealed partial class Renderer : IDisposable
         // Processor
         _tiles.Clear();
         if (!float.IsNaN(_t.CpuTemp)) _tiles.Add(new("Temperature", _t.CpuTemp.ToString("0"), "°C", _t.CpuTemp, 2));
+        else if (_t.CpuTempFrozen && !_t.Elevated && _t.DriverInstalled) _tiles.Add(new("Temperature", "Restart as admin", "", Hit: HitElevate)); // the board's fixed number; the driver can do better
+        else if (_t.CpuTempFrozen) _tiles.Add(new("Temperature", "–", ""));
         if (!float.IsNaN(_t.CpuClock)) _tiles.Add(new("Clock", (_t.CpuClock / 1000).ToString("0.00"), "GHz"));
         if (!float.IsNaN(_t.CpuFan)) _tiles.Add(new("Fan", _t.CpuFan.ToString("N0"), "RPM"));
         if (!float.IsNaN(_t.CpuPower)) _tiles.Add(new("Power", _t.CpuPower.ToString("0.0"), "W"));
@@ -575,6 +577,15 @@ internal sealed partial class Renderer : IDisposable
             var t = _tiles[i];
             float tx = block + (i % 2) * colW, lb = r.Y + 62 * _s + (i / 2) * 48 * _s;
             Text(g, t.Label, _fLabel, Muted, tx, lb);
+            if (t.Hit != 0)
+            {
+                // A link where the value would be, in the same quiet style as the process list's admin hint
+                float lw = MathF.Min(Width(g, t.Value, _fLabel), colW - 8 * _s);
+                var link = new RectangleF(tx - 6 * _s, lb + 4 * _s, lw + 12 * _s, 26 * _s);
+                Hits.Add((link, t.Hit));
+                TextClipped(g, t.Value, _fLabel, Hover(link) ? Ink : Faint, tx, lb + 21 * _s, colW - 8 * _s);
+                continue;
+            }
             Color c = t.Kind == 2 && t.Fraction >= 90 ? Hot : t.Kind == 2 && t.Fraction >= 80 ? Warn : Ink;
             ValueUnit(g, t.Value, t.Unit, _fVal, _fUnit, tx - 1 * _s, lb + 23 * _s, c);
         }
