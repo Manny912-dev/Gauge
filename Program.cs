@@ -21,6 +21,7 @@ static class Program
         if (args.Length >= 2 && args[0] == "--banner") { Snapshot.WriteBanner(args[1]); return; }
         if (args.Length >= 2 && args[0] == "--splash") { Snapshot.WriteSplash(args[1], args.Length >= 3 ? args[2] : null); return; }
         if (args.Length >= 2 && args[0] == "--board-lighting") Environment.Exit(BoardLighting.Run(args[1]));
+        if (args.Length >= 2 && args[0] == "--sensor-probe") { Snapshot.SensorProbe(args[1]); return; }
         if (args.Length >= 2 && args[0] == "--tray-menu") { Snapshot.TrayMenu(args[1]); return; }
         if (args.Length >= 2 && args[0] == "--kraken-test")
         {

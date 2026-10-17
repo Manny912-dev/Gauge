@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+- **Fixed: CPU temperature and clock stopped updating** a few seconds after launch whenever Gauge ran without administrator rights (for example after an update restarted it). They now follow the CPU live. Running Gauge as administrator still gives the most accurate CPU readings.
+
 ## 0.8.0 — the Kraken's screen
 
 - **NZXT Kraken Z3 screen.** Gauge can draw the 320 × 320 screen on Kraken Z53, Z63 and Z73 coolers without NZXT CAM: a gradient ring with a dot at the reading (or a full-screen gradient), the number, its unit and a label. It can show liquid, CPU or GPU temperature, load or clock, in five colour pairs or any two hues, at four brightness levels and four rotations. A live preview on the Lighting page shows exactly what the cooler will show, along with the liquid temperature and pump speed.

@@ -133,6 +133,32 @@ internal static class Snapshot
         File.WriteAllText(resultPath, sb.ToString());
     }
 
+    /// <summary>Developer check: every second for 20 s, Gauge's CPU and GPU values next to the hardware library's raw CPU sensors.</summary>
+    public static void SensorProbe(string path)
+    {
+        var sb = new StringBuilder();
+        using var t = new Telemetry();
+        t.Start();
+        var computer = new LibreHardwareMonitor.Hardware.Computer { IsCpuEnabled = true };
+        computer.Open();
+        var cpu = computer.Hardware.FirstOrDefault(h => h.HardwareType == LibreHardwareMonitor.Hardware.HardwareType.Cpu);
+        for (int i = 0; i < 20; i++)
+        {
+            Thread.Sleep(1000);
+            cpu?.Update();
+            string raw = cpu == null ? "no cpu" : string.Join(", ", cpu.Sensors
+                .Where(s => s.SensorType is LibreHardwareMonitor.Hardware.SensorType.Temperature || (s.SensorType == LibreHardwareMonitor.Hardware.SensorType.Clock && s.Name.Contains("#1")))
+                .Select(s => $"{s.Name}={s.Value:0.0}"));
+            lock (t.Sync)
+            {
+                var g = t.Gpus.Count > 0 ? t.Gpus[Math.Min(t.GpuIndex, t.Gpus.Count - 1)] : null;
+                sb.AppendLine($"{i,2}s gauge: load {t.CpuLoad:0} temp {t.CpuTemp:0.0} clock {t.CpuClock:0} | gpu {g?.Load:0} {g?.Temp:0} {g?.Clock:0} | lhm: {raw}");
+            }
+        }
+        computer.Close();
+        File.WriteAllText(path, sb.ToString());
+    }
+
     /// <summary>Opens the tray menu with its first item hovered and saves a picture of it from the screen.</summary>
     public static void TrayMenu(string path)
     {

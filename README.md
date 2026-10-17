@@ -65,9 +65,9 @@ If you turned on motherboard and RAM lighting, turn it off in Gauge before unins
 
 ## What's new
 
-**0.8.0** — Gauge can drive the screen on NZXT Kraken Z3 coolers (Z53, Z63, Z73) without NZXT CAM: a live gradient gauge showing liquid, CPU or GPU readings.
+**0.8.1** — Fixes CPU temperature and clock freezing a few seconds after launch when Gauge runs without administrator rights.
 
-**0.7.2** — Lighting support for the Keychron Q1 HE (through VIA), and richer device reports for QMK keyboards.
+**0.8.0** — Gauge can drive the screen on NZXT Kraken Z3 coolers (Z53, Z63, Z73) without NZXT CAM: a live gradient gauge showing liquid, CPU or GPU readings.
 
 **0.7.0** — A full redesign on the way to 1.0: a navigation rail, a bigger and clearer Monitor page, a rebuilt Lighting page (device list plus inspector, with a glowing live preview), grouped Specs, and Settings as its own page.
 
@@ -101,6 +101,7 @@ The app is written in C# with Windows Forms, but nothing on screen is a standard
 | `--tray-menu <file.png>` | Opens the tray menu and saves a picture of it |
 | `--kraken-test <folder>` | Runs the Kraken screen code against a simulated cooler and checks the drawing against reference values |
 | `--qmk-test <file>` | Runs the QMK/VIA keyboard driver against a simulated keyboard |
+| `--sensor-probe <file>` | Logs Gauge's CPU and GPU readings next to the hardware library's raw CPU sensors, once a second for 20 s |
 | `--banner <file.png>` | Draws the banner image (`docs/banner.png`) |
 | `--orgb-test <file>` | Sends colours to every OpenRGB device and reads them back |
 | `--light-test <RRGGBB> <file>` | Sends one colour to the native keyboard driver |

@@ -310,7 +310,9 @@ internal sealed unsafe class Telemetry : IDisposable
         _idle = idle; _kernel = kernel; _user = user;
         CpuHistory.Push(CpuLoad);
 
-        // Hardware sensors
+        // Hardware sensors. Cleared every tick: once the CPU sensors are dropped (no kernel driver), the
+        // fallbacks below must still run each time, or the last fallback reading would stick for good.
+        CpuTemp = CpuPower = CpuClock = float.NaN;
         if (_computer != null)
         {
             if (_cpu != null)
