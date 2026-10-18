@@ -30,6 +30,13 @@ Velopack 1.2.161
   Licence: MIT  (https://github.com/velopack/velopack/blob/master/LICENSE)
   Source:  https://github.com/velopack/velopack
 
+SixLabors.ImageSharp 3.1.12
+  Licence: Six Labors Split License 1.0, under which Gauge, as open-source
+           software, uses it under the Apache License 2.0
+           (https://www.apache.org/licenses/LICENSE-2.0)
+  Source:  https://github.com/SixLabors/ImageSharp
+  Used to prepare pictures and GIFs for the NZXT Kraken's screen.
+
 HidSharp 2.6.4
   Licence: Apache License 2.0  (https://www.apache.org/licenses/LICENSE-2.0)
   Source:  https://software.seekye.com/hidsharp

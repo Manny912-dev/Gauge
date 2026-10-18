@@ -5,8 +5,9 @@ using System.Drawing.Text;
 namespace Gauge;
 
 /// <summary>
-/// Draws the Kraken Z3's 320×320 screen in the "Single Infographic" layout: a 270° gradient ring with a dot at
-/// the reading ("Radial Fill") or a full-screen gradient ("Full Fill"), with the number, its unit and a label.
+/// Draws the Kraken Z3's 320×320 screen. "Single Infographic": a 270° gradient ring with a dot at the reading
+/// ("Radial Fill") or a full-screen gradient ("Full Fill"), with the number, its unit and a label. "Dual
+/// Infographic": two readings side by side, each with an arc. Also turns frames for the rotation dial.
 /// The ring geometry and colours follow NZXT CAM's behaviour; type is Bahnschrift (Windows' own DIN face)
 /// and the logo is Gauge's mark, so nothing of CAM's fonts or branding is used.
 /// </summary>
@@ -239,31 +240,207 @@ internal static class KrakenFrame
         path.Transform(m);
     }
 
-    // ------------------------------------------------------------------ upload format
+    // ------------------------------------------------------------------ Dual Infographic ("Vertical")
 
-    /// <summary>The frame as the cooler takes it: RGBA, row by row from the top left, rotated clockwise by <paramref name="rotation"/>.</summary>
-    public static byte[] ToRgba(Bitmap frame, int rotation)
+    // Arc band 0.800..0.988 around radius 0.894, so its round caps (radius 0.094) are half its width; track 0.805..0.988
+    const float DualMid = 0.894f, DualHalf = 0.094f, TrackIn = 0.805f, TrackOut = 0.988f;
+    /// <summary>How far each arc reaches either side of its centre line at a full reading, in degrees.</summary>
+    public const float DualReach = 72;
+    /// <summary>Where the two text columns sit, in pixels from the left.</summary>
+    public const float DualColumn1 = 104, DualColumn2 = 216;
+
+    /// <summary>Half the arc's sweep in degrees for a reading at <paramref name="r"/> (0..1): 0 is a dot, 1 reaches ±72°.</summary>
+    public static float DualSpan(float r) => Math.Clamp(r, 0, 1) * DualReach;
+
+    /// <summary>The centres of an arc's two round caps, in normalised units, for an arc centred on <paramref name="centreDeg"/>.</summary>
+    public static (PointF A, PointF B, float Radius) DualCaps(float centreDeg, float r)
     {
-        using var turned = (Bitmap)frame.Clone();
-        turned.RotateFlip(rotation switch { 90 => RotateFlipType.Rotate90FlipNone, 180 => RotateFlipType.Rotate180FlipNone, 270 => RotateFlipType.Rotate270FlipNone, _ => RotateFlipType.RotateNoneFlipNone });
-        var data = turned.LockBits(new Rectangle(0, 0, N, N), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-        var rgba = new byte[KrakenSession.FrameBytes];
+        float s = DualSpan(r);
+        PointF At(float deg) => new(DualMid * MathF.Cos(Deg(deg)), DualMid * MathF.Sin(Deg(deg)));
+        return (At(centreDeg - s), At(centreDeg + s), DualHalf);
+    }
+
+    /// <summary>The track ring's colour: CAM's <c>0.25·(0.75·lin(bg) + 0.03)</c>, scaled to land on the measured (21,21,21) over black.</summary>
+    public static Color DualTrack(Color bg)
+    {
+        float black = ToSrgb(0.25f * 0.03f), scale = 21 / 255f / black;
+        int Channel(byte c) => (int)MathF.Round(Math.Clamp(ToSrgb(0.25f * (0.75f * MathF.Pow(c / 255f, 2.2f) + 0.03f)) * scale, 0, 1) * 255);
+        return Color.FromArgb(255, Channel(bg.R), Channel(bg.G), Channel(bg.B));
+    }
+
+    /// <summary>NZXT CAM's "Dual Infographic" in its Vertical layout: two readings, left and right, each with an arc that grows up and down from the middle.</summary>
+    public static Bitmap RenderDual(LcdSettings s, float value1, float value2)
+    {
+        float r1 = Normalise(s.Reading1, value1), r2 = Normalise(s.Reading2, value2);
+        var track = DualTrack(s.Background);
+        var bmp = new Bitmap(N, N, PixelFormat.Format32bppArgb);
+        var data = bmp.LockBits(new Rectangle(0, 0, N, N), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
         unsafe
         {
-            for (int y = 0; y < N; y++)
+            int* px = (int*)data.Scan0;
+            int stride = data.Stride / 4;
+            float s1 = float.IsNaN(r1) ? float.NaN : Deg(DualSpan(r1)), s2 = float.IsNaN(r2) ? float.NaN : Deg(DualSpan(r2));
+            for (int py = 0; py < N; py++)
             {
-                byte* row = (byte*)data.Scan0 + y * data.Stride; // B, G, R, A
-                for (int x = 0; x < N; x++)
+                int* row = px + py * stride;
+                for (int pxi = 0; pxi < N; pxi++)
                 {
-                    int o = (y * N + x) * 4;
-                    rgba[o] = row[x * 4 + 2];
-                    rgba[o + 1] = row[x * 4 + 1];
-                    rgba[o + 2] = row[x * 4];
-                    rgba[o + 3] = 255;
+                    float x = (pxi + 0.5f - Half) / Half, y = (Half - (py + 0.5f)) / Half;
+                    float rho = MathF.Sqrt(x * x + y * y);
+                    Color c = s.Background;
+                    float ring = Math.Clamp(0.5f - (MathF.Abs(rho - (TrackIn + TrackOut) / 2) - (TrackOut - TrackIn) / 2) * Half, 0, 1);
+                    if (ring > 0) c = Blend(c, track, ring);
+                    if (!float.IsNaN(s1)) c = Blend(c, s.Arc1, Math.Clamp(0.5f - (CentredArcDistance(x, y, MathF.PI, s1) - DualHalf) * Half, 0, 1));
+                    if (!float.IsNaN(s2)) c = Blend(c, s.Arc2, Math.Clamp(0.5f - (CentredArcDistance(x, y, 0, s2) - DualHalf) * Half, 0, 1));
+                    row[pxi] = c.ToArgb() | unchecked((int)0xFF000000);
                 }
             }
         }
-        turned.UnlockBits(data);
+        bmp.UnlockBits(data);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            if (s.Logo) Brand.DrawMark(g, Half, 88, 36, s.Ink, Color.FromArgb(80, s.Ink), 9);
+            using var family = new FontFamily("Bahnschrift");
+            DualColumn(g, family, s.Reading1, value1, s.Number1, s.Label1, DualColumn1);
+            DualColumn(g, family, s.Reading2, value2, s.Number2, s.Label2, DualColumn2);
+        }
+        return bmp;
+    }
+
+    /// <summary>Distance from (x, y) to an arc of radius <see cref="DualMid"/> spanning <paramref name="centre"/> ± <paramref name="half"/> (radians); a dot when the span is 0.</summary>
+    static float CentredArcDistance(float x, float y, float centre, float half)
+    {
+        float d = MathF.Atan2(y, x) - centre;
+        d -= 2 * MathF.PI * MathF.Floor((d + MathF.PI) / (2 * MathF.PI)); // into [-π, π)
+        if (MathF.Abs(d) <= half) return MathF.Abs(MathF.Sqrt(x * x + y * y) - DualMid);
+        float end = centre + (d > 0 ? half : -half);
+        return Dist(x, y, DualMid * MathF.Cos(end), DualMid * MathF.Sin(end));
+    }
+
+    /// <summary>One reading's number, unit and label, centred on <paramref name="column"/>, as measured from CAM's Vertical layout.</summary>
+    static void DualColumn(Graphics g, FontFamily family, LcdReading reading, float value, Color numberColour, Color labelColour, float column)
+    {
+        var (_, _, unit, label) = Range(reading);
+        string number = float.IsNaN(value) ? "--" : ((int)MathF.Round(value)).ToString();
+        const float baseline = 176, gap = 5;
+        float digitHeight = 40, em = EmFor(family, FontStyle.Bold, "0", digitHeight);
+        string unitText = float.IsNaN(value) ? "" : unit;
+
+        // Shrink long numbers so they stay in their half: 8 px inside the arcs, clear of the centre line.
+        bool left = column < Half;
+        float minX = left ? 42 : Half + 4, maxX = left ? Half - 4 : N - 42;
+        using (var probe = PathFor(family, FontStyle.Bold, number, em))
+        using (var probeUnit = PathFor(family, FontStyle.Bold, unitText, em * 32 / 55))
+        {
+            float halfDigits = probe.GetBounds().Width / 2, unitW = unitText.Length > 0 ? probeUnit.GetBounds().Width + gap : 0;
+            float fit = MathF.Min(1, MathF.Min((column - minX) / halfDigits, (maxX - column) / (halfDigits + unitW)));
+            if (fit < 1) { em *= fit; digitHeight *= fit; }
+        }
+
+        using var ink = new SolidBrush(numberColour);
+        using var numberPath = PathFor(family, FontStyle.Bold, number, em);
+        var nb = numberPath.GetBounds();
+        float top = baseline - digitHeight;
+        Place(numberPath, column - (nb.X + nb.Width / 2), top - nb.Y);
+        g.FillPath(ink, numberPath);
+        var placed = numberPath.GetBounds();
+
+        // Unit: about 32/55 of the number's size, hanging 5 px after the digits, 1 px below their top
+        using var unitPath = PathFor(family, FontStyle.Bold, unitText, em * 32 / 55);
+        var ub = unitPath.GetBounds();
+        Place(unitPath, placed.Right + gap - ub.X, top + 1 - ub.Y);
+        g.FillPath(ink, unitPath);
+
+        // Label: capitals about 17.7 px tall, baseline at 221
+        const float cap = 17.7f;
+        float labelEm = EmFor(family, FontStyle.Bold, "L", cap);
+        using var labelPath = PathFor(family, FontStyle.Bold, label, labelEm);
+        var lb = labelPath.GetBounds();
+        using var capPath = PathFor(family, FontStyle.Bold, "L", labelEm);
+        var cb = capPath.GetBounds();
+        using var labelInk = new SolidBrush(labelColour);
+        Place(labelPath, column - (lb.X + lb.Width / 2), 221 - cap - cb.Y);
+        g.FillPath(labelInk, labelPath);
+    }
+
+    // ------------------------------------------------------------------ rotation
+
+    /// <summary>
+    /// How far a live frame is turned clockwise before upload for a dial at <paramref name="dial"/>: the dial says how
+    /// far the pump head is turned clockwise, so the picture is turned back by as much.
+    /// </summary>
+    public static int RawClockwise(int dial) => (360 - (dial % 360 + 360) % 360) % 360;
+
+    /// <summary>How far a GIF is turned clockwise before upload: the cooler shows bucket GIFs 90° counter-clockwise of live frames.</summary>
+    public static int GifClockwise(int dial) => (RawClockwise(dial) + 90) % 360;
+
+    /// <summary>
+    /// Turns a square picture of 32-bit pixels clockwise about its centre: exactly for multiples of 90°, bilinear
+    /// otherwise. Pixels from outside the picture come out opaque black (the corners are off the round glass anyway).
+    /// </summary>
+    public static void Rotate(ReadOnlySpan<uint> src, Span<uint> dst, int size, int clockwise)
+    {
+        int turn = (clockwise % 360 + 360) % 360, n = size - 1;
+        switch (turn)
+        {
+            case 0: src.CopyTo(dst); return;
+            case 90: for (int y = 0; y < size; y++) for (int x = 0; x < size; x++) dst[y * size + x] = src[(n - x) * size + y]; return;
+            case 180: for (int i = 0; i < size * size; i++) dst[i] = src[size * size - 1 - i]; return;
+            case 270: for (int y = 0; y < size; y++) for (int x = 0; x < size; x++) dst[y * size + x] = src[x * size + (n - y)]; return;
+        }
+        float t = turn * MathF.PI / 180, cos = MathF.Cos(t), sin = MathF.Sin(t), c = size / 2f;
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                // Screen y points down, so this inverse of a clockwise turn finds where each pixel came from.
+                float dx = x + 0.5f - c, dy = y + 0.5f - c;
+                float sx = dx * cos + dy * sin + c - 0.5f, sy = -dx * sin + dy * cos + c - 0.5f;
+                dst[y * size + x] = Bilinear(src, size, sx, sy);
+            }
+    }
+
+    static uint Bilinear(ReadOnlySpan<uint> src, int size, float x, float y)
+    {
+        int x0 = (int)MathF.Floor(x), y0 = (int)MathF.Floor(y);
+        float fx = x - x0, fy = y - y0;
+        uint a = At(src, size, x0, y0), b = At(src, size, x0 + 1, y0), c = At(src, size, x0, y0 + 1), d = At(src, size, x0 + 1, y0 + 1);
+        uint result = 0;
+        for (int shift = 0; shift < 32; shift += 8)
+        {
+            float top = ((a >> shift) & 0xFF) * (1 - fx) + ((b >> shift) & 0xFF) * fx;
+            float bottom = ((c >> shift) & 0xFF) * (1 - fx) + ((d >> shift) & 0xFF) * fx;
+            result |= (uint)Math.Clamp((int)MathF.Round(top * (1 - fy) + bottom * fy), 0, 255) << shift;
+        }
+        return result;
+    }
+
+    static uint At(ReadOnlySpan<uint> src, int size, int x, int y) => x >= 0 && y >= 0 && x < size && y < size ? src[y * size + x] : 0xFF000000;
+
+    // ------------------------------------------------------------------ upload format
+
+    /// <summary>The frame as the cooler takes it: RGBA, row by row from the top left, turned for the dial (see <see cref="RawClockwise"/>).</summary>
+    public static byte[] ToRgba(Bitmap frame, int dial)
+    {
+        var pixels = new uint[N * N];
+        var data = frame.LockBits(new Rectangle(0, 0, N, N), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        unsafe
+        {
+            for (int y = 0; y < N; y++) new ReadOnlySpan<uint>((byte*)data.Scan0 + y * data.Stride, N).CopyTo(pixels.AsSpan(y * N, N));
+        }
+        frame.UnlockBits(data);
+        var turned = new uint[N * N];
+        Rotate(pixels, turned, N, RawClockwise(dial));
+        var rgba = new byte[KrakenSession.FrameBytes];
+        for (int i = 0; i < turned.Length; i++)
+        {
+            uint p = turned[i]; // A R G B from the top byte down
+            rgba[i * 4] = (byte)(p >> 16);
+            rgba[i * 4 + 1] = (byte)(p >> 8);
+            rgba[i * 4 + 2] = (byte)p;
+            rgba[i * 4 + 3] = 255;
+        }
         return rgba;
     }
 }

@@ -11,7 +11,7 @@
     <SelfContained>false</SelfContained>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon Condition="Exists('gauge.ico')">gauge.ico</ApplicationIcon>
-    <Version>0.8.3</Version>
+    <Version>0.9.0</Version>
     <Product>Gauge</Product>
     <AssemblyTitle>Gauge</AssemblyTitle>
     <Description>System monitor</Description>
@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Velopack" Version="1.2.161" />
     <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
   </ItemGroup>

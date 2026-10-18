@@ -8,7 +8,7 @@ internal sealed partial class Renderer : IDisposable
 {
     // Hit ids. Anything below HitRow is clickable; HitLast closes the range that shows a hand cursor.
     public const int HitMonitor = 1, HitSpecs = 2, HitElevate = 3, HitCopy = 4, HitGpu = 5, HitMin = 6, HitMax = 7, HitClose = 8, HitSettings = 9, HitSort = 10, HitUpdate = 17,
-        HitSwatch = 100, HitHue = 120, HitReset = 121, HitAutoUpdate = 122, HitAutoStart = 123, HitTray = 124, HitLast = 199, HitRow = 200;
+        HitSwatch = 100, HitHue = 120, HitReset = 121, HitAutoUpdate = 122, HitAutoStart = 123, HitTray = 124, HitLast = 999, HitRow = 1000;
     public const int PageMonitor = 0, PageSpecs = 1, PageLighting = 2, PageSettings = 3;
     /// <summary>The header strip, which is also the title bar.</summary>
     public const float ChromeHeight = 56;
@@ -403,6 +403,7 @@ internal sealed partial class Renderer : IDisposable
             g.DrawRectangle(frame, 0, 0, w - 1, h - 1);
             g.SmoothingMode = mode;
         }
+        if (Crop is { } crop) RenderCrop(g, w, h, crop);
     }
 
     void Rail(Graphics g, float h)

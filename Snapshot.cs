@@ -84,6 +84,29 @@ internal static class Snapshot
         r.Scroll = 1000;
         Save(r, t, w, h, Path.Combine(dir, "lighting-kraken-scrolled.png"));
         r.Scroll = 0;
+        screen.ShowForSnapshot(new LcdSettings { Drive = true, Mode = LcdMode.Dual, Dial = 30 }, 48, "Gauge is drawing the screen", false, 31.6f, 2140, 60);
+        Save(r, t, w, h, Path.Combine(dir, "lighting-kraken-dual.png"));
+        r.Scroll = 1000;
+        Save(r, t, w, h, Path.Combine(dir, "lighting-kraken-dual-scrolled.png"));
+        r.Scroll = 0;
+        // Picture mode with a sample in the library (taken out again afterwards)
+        string arrow = Path.Combine(dir, "arrow.gif");
+        KrakenMedia.WriteArrowGif(arrow);
+        var sample = KrakenMedia.Import(arrow, new Rectangle(0, 0, 320, 320), KrakenFrame.GifClockwise(0));
+        screen.ShowForSnapshot(new LcdSettings { Drive = true, Mode = LcdMode.Media, Media = sample.Id }, float.NaN, "The cooler is playing your GIF by itself", false, 31.6f, 2140);
+        Save(r, t, w, h, Path.Combine(dir, "lighting-kraken-picture.png"));
+        screen.ShowForSnapshot(new LcdSettings { Drive = true, Mode = LcdMode.Media }, float.NaN, "No picture chosen, so the Kraken shows its liquid temperature", false, 31.6f, 2140);
+        Save(r, t, w, h, Path.Combine(dir, "lighting-kraken-picture-none.png"));
+        KrakenMedia.Delete(sample.Id);
+        using (var photo = new Bitmap(640, 400))
+        {
+            using (var pg = Graphics.FromImage(photo))
+            using (var sky = new System.Drawing.Drawing2D.LinearGradientBrush(new Rectangle(0, 0, 640, 400), Color.FromArgb(255, 40, 90, 160), Color.FromArgb(255, 240, 150, 80), 90f))
+                pg.FillRectangle(sky, 0, 0, 640, 400);
+            r.BeginCrop(Path.Combine(dir, "sunset.jpg"), new Bitmap(photo), 1);
+            Save(r, t, w, h, Path.Combine(dir, "lighting-kraken-crop.png"));
+            r.EndCrop(use: false);
+        }
         lights.Screen = null;
         screen.Dispose();
         r.LightingPress(Renderer.HitLightDevice, 0);

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 — more for the Kraken's screen
+
+- **Dual design.** Two readings side by side, each with its own arc growing up and down from the middle, as NZXT CAM's "Dual Infographic" (Vertical) lays them out. Choose each reading, the two arc colours, and the colour of each number and label.
+- **Picture design.** Add a GIF, PNG or JPEG of up to 32 MB, crop it to a square with the round screen shown on it, and Gauge prepares it for the cooler: resized to 320 × 320, the corners blacked out, and made small enough for the cooler's 23.75 MB memory. It is sent once with a progress bar and then the cooler plays it by itself, at no cost to your PC. Earlier pictures stay in a library to switch between or delete. With no picture chosen, the Kraken shows its own liquid-temperature screen.
+- **Rotation dial.** Twelve steps of 30° instead of four, matching how the pump head is mounted; Gauge turns the picture back so it reads upright. A rotation set in an earlier version carries over.
+- **Shared memory on the cooler.** Live frames and pictures now share the cooler's memory through one manager that never touches what is on screen, makes room by clearing the least recently used items, and re-reads the cooler whenever it disagrees. A picture already on the cooler is not sent again, even after Gauge restarts.
+
 ## 0.8.3
 
 - **A stuck CPU temperature is no longer shown as live.** Without administrator rights, many desktops can only offer the motherboard's ACPI reading, which often never changes. When that reading stays exactly the same for 20 seconds, Gauge stops showing it and offers "Restart as admin" in its place, like the per-app network hint. If the PawnIO driver is not installed, where restarting would not help, it shows "–" instead. A reading that moves, as on most laptops, is shown as before.

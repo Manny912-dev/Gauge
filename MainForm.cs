@@ -284,6 +284,7 @@ internal sealed unsafe class MainForm : Form
     {
         _renderer.Mouse = e.Location;
         if (_drag == Renderer.HitHue) { _renderer.SetHueFromX(e.X); Invalidate(); return; }
+        if (_drag == Renderer.HitCropBox) { _renderer.CropMove(e.Location); Invalidate(); return; }
         if (_drag != 0)
         {
             if (_renderer.LightingDrag(_drag, e.X)) ApplyLighting();
@@ -307,6 +308,19 @@ internal sealed unsafe class MainForm : Form
     {
         if (e.Button != MouseButtons.Left) return;
         int id = _renderer.HitAt(e.Location);
+        if (_renderer.Crop != null && id is >= Renderer.HitCropShade and <= Renderer.HitCropCancel)
+        {
+            switch (id)
+            {
+                case Renderer.HitCropBox: _drag = id; _renderer.CropGrab(e.Location); break;
+                case Renderer.HitCropUse:
+                    if (_renderer.EndCrop(use: true) is { } chosen) _lighting.Screen?.Import(chosen.Path, chosen.Square);
+                    break;
+                case Renderer.HitCropCancel: _renderer.EndCrop(use: false); break;
+            }
+            Invalidate();
+            return;
+        }
         switch (id)
         {
             case Renderer.HitSettings: ShowPage(Renderer.PageSettings); break;
@@ -337,7 +351,8 @@ internal sealed unsafe class MainForm : Form
             case Renderer.HitUpdate:
                 if (_updater.ApplyOnExit()) Quit(); // the updater swaps versions once this window is gone, then reopens Gauge
                 return;
-            case >= Renderer.HitLcdItem and <= Renderer.HitLcdLogo:
+            case Renderer.HitLcdUpload: ChooseScreenPicture(); break;
+            case >= Renderer.HitLcdItem and <= Renderer.HitLcdLogo or >= Renderer.HitLcdMode and < Renderer.HitCropShade:
                 if (id is Renderer.HitLcdHue1 or Renderer.HitLcdHue2) _drag = id;
                 _renderer.ScreenPress(id, e.X);
                 UpdatePause();
@@ -370,6 +385,7 @@ internal sealed unsafe class MainForm : Form
     protected override void OnMouseUp(MouseEventArgs e)
     {
         if (_drag == 0) return;
+        if (_drag == Renderer.HitCropBox) { _drag = 0; return; }
         bool wasAccent = _drag == Renderer.HitHue;
         _drag = 0;
         if (wasAccent) Settings.SaveAccent(Renderer.Accent);
@@ -430,6 +446,7 @@ internal sealed unsafe class MainForm : Form
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (e.KeyCode == Keys.Escape && _renderer.Crop != null) { _renderer.EndCrop(use: false); Invalidate(); e.Handled = true; return; }
         // Ctrl+1 to Ctrl+4 move between the pages, in rail order.
         if (e.Control && e.KeyCode is >= Keys.D1 and <= Keys.D4) { ShowPage(e.KeyCode - Keys.D1); e.Handled = true; }
         base.OnKeyDown(e);
@@ -437,6 +454,7 @@ internal sealed unsafe class MainForm : Form
 
     protected override void OnMouseWheel(MouseEventArgs e)
     {
+        if (_renderer.Crop != null) { _renderer.CropZoom(e.Delta); Invalidate(); return; }
         if (_renderer.Tab == Renderer.PageMonitor) return;
         float next = Math.Clamp(_renderer.Scroll - e.Delta / 120f * 48 * Dpi, 0, _renderer.MaxScroll);
         if (next != _renderer.Scroll) { _renderer.Scroll = next; Invalidate(); }
@@ -451,6 +469,27 @@ internal sealed unsafe class MainForm : Form
             var specs = Specs.Collect(_telemetry, out var summary);
             try { BeginInvoke(() => { _renderer.Specs = specs; _renderer.Summary = summary; Invalidate(); }); } catch (InvalidOperationException) { }
         }) { IsBackground = true, Name = "Specs" }.Start();
+    }
+
+    /// <summary>Picks a picture for the Kraken's screen and opens the crop dialog for it; a file Gauge cannot use is explained under the library.</summary>
+    void ChooseScreenPicture()
+    {
+        var screen = _lighting.Screen;
+        if (screen == null || screen.MediaBusy) return;
+        using var dialog = new OpenFileDialog { Title = "Choose a picture or GIF for the cooler's screen", Filter = "Pictures and GIFs (*.gif, *.png, *.jpg, *.jpeg)|*.gif;*.png;*.jpg;*.jpeg" };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        try
+        {
+            var (first, frames) = KrakenMedia.OpenForCrop(dialog.FileName);
+            _renderer.BeginCrop(dialog.FileName, first, frames);
+        }
+        catch (KrakenMediaException ex) { screen.ShowMediaError(ex.Message); }
+        catch (Exception ex)
+        {
+            Log.Write($"lcd media: could not open {dialog.FileName}: {ex}");
+            screen.ShowMediaError($"Could not open the picture: {ex.Message}");
+        }
+        Invalidate();
     }
 
     void RestartElevated()

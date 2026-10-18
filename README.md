@@ -30,7 +30,7 @@
 - Motherboard and RAM lighting with one administrator approval (installs the [PawnIO](https://github.com/namazso/PawnIO.Setup) driver), and a clean way to turn it off again
 - "Apply when Gauge starts" sets your lighting at every sign-in
 - Devices without a driver yet are listed, with a report you can copy and send so support can be added
-- The screen on NZXT Kraken Z3 coolers (Z53, Z63, Z73): a live gradient gauge showing liquid, CPU or GPU temperature, load or clock, with a preview, without NZXT CAM (close CAM while Gauge drives it)
+- The screen on NZXT Kraken Z3 coolers (Z53, Z63, Z73), without NZXT CAM (close CAM while Gauge drives it): a live gradient gauge for one reading, a two-reading layout with an arc each, or your own picture or GIF, which the cooler plays by itself. Liquid, CPU or GPU temperature, load or clock; a preview; a 12-step rotation dial for however the pump is mounted
 
 <p align="center">
   <img src="docs/screenshots/lighting.gif" alt="Gauge's Lighting page: the Lenovo 4-zone keyboard set to magenta, then cyan, then the Breathing and Wave effects, then back to the accent colour, with the lit zone preview following each change" width="900">
@@ -64,6 +64,8 @@ Requires 64-bit Windows 10 or Windows 11. The installed copy keeps itself up to 
 If you turned on motherboard and RAM lighting, turn it off in Gauge before uninstalling.
 
 ## What's new
+
+**0.9.0** — Two more designs for the NZXT Kraken Z3 screen: Dual (two readings, an arc each) and Picture (your own GIF, PNG or JPEG, cropped to the round screen and played by the cooler itself), plus a 12-step rotation dial.
 
 **0.8.3** — A CPU temperature that never changes is no longer shown as live; Gauge offers "Restart as admin" for a real reading instead.
 
@@ -103,7 +105,7 @@ The app is written in C# with Windows Forms, but nothing on screen is a standard
 |---|---|
 | `--snapshot <folder>` | Renders every page to PNG offscreen with live data, plus sensor readings and a lighting device report |
 | `--tray-menu <file.png>` | Opens the tray menu and saves a picture of it |
-| `--kraken-test <folder>` | Runs the Kraken screen code against a simulated cooler and checks the drawing against reference values |
+| `--kraken-test <folder>` | Runs the Kraken screen code against a simulated cooler (bucket memory, live frames, GIFs, mode switching) and checks the drawing, rotation and picture pipeline against reference values; writes sample frames and test GIFs |
 | `--qmk-test <file>` | Runs the QMK/VIA keyboard driver against a simulated keyboard |
 | `--sensor-probe <file>` | Logs Gauge's CPU and GPU readings next to the hardware library's raw CPU sensors, once a second for 20 s |
 | `--banner <file.png>` | Draws the banner image (`docs/banner.png`) |
@@ -128,4 +130,4 @@ The app is written in C# with Windows Forms, but nothing on screen is a standard
 
 Gauge is released under the [MIT License](LICENSE).
 
-It ships with third-party components under their own licences, listed in [THIRD-PARTY-NOTICES.txt](package/THIRD-PARTY-NOTICES.txt). Notably, OpenRGB (GPL-2.0-or-later) is included unmodified and run as a separate program; the exact source of the bundled build is published as the [openrgb-1.0-source](https://github.com/Manny912-dev/Gauge/releases/tag/openrgb-1.0-source) release. Sensor reading uses [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (MPL-2.0).
+It ships with third-party components under their own licences, listed in [THIRD-PARTY-NOTICES.txt](package/THIRD-PARTY-NOTICES.txt). Notably, OpenRGB (GPL-2.0-or-later) is included unmodified and run as a separate program; the exact source of the bundled build is published as the [openrgb-1.0-source](https://github.com/Manny912-dev/Gauge/releases/tag/openrgb-1.0-source) release. Sensor reading uses [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (MPL-2.0); pictures for the Kraken's screen are prepared with [ImageSharp](https://github.com/SixLabors/ImageSharp) (Six Labors Split License, Apache-2.0 for open-source use).
